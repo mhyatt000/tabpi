@@ -164,10 +164,14 @@ def main(cfg: Config):
 
         step += 1
 
+        if step % 10 == 0:
+            imageio.mimsave(f"LiberoStep{step}.mp4", frames, fps=5)
+            print(f"LiberoStep{step}.mp4 saved")
+
     env.close()
 
     # Save video
-    imageio.mimsave("Libero.mp4", frames, fps=5)
+    imageio.mimsave("LiberoAll.mp4", frames, fps=5)
     print("Libero.mp4 saved")
 
 
