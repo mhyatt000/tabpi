@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 from pathlib import Path
+import time
 
 import h5py
 import imageio
@@ -143,6 +144,7 @@ def main(cfg: Config):
     env.reset()
 
     frames = []
+    total_time = 0
     done, step, max_steps = False, 0, cfg.steps
 
     dir_path = Path(f"ObsVids/{cfg.training}{task_names[task_id]}")
@@ -152,15 +154,20 @@ def main(cfg: Config):
         env_state = env.get_sim_state()
 
         # print(f"Env State Shape: {env_state.shape}")
+        start = time.time()
         action = policy.predict(env_state.reshape(1, -1))
+        end = time.time()
         action = np.concatenate(action, axis=0)
         # print(action.shape)
 
+        iteration_time = start - end
+        total_time += iteration_time
         obs, _reward, done, _info = env.step(action)
 
         frames.append(obs["galleryview_image"][::-1])
 
         print(f"step={step}")
+        print(f"Inference time={iteration_time}")
 
         if done:
             print("Resetting the env")
@@ -170,6 +177,8 @@ def main(cfg: Config):
 
         if step % 10 == 0:
             imageio.mimsave(f"ObsVids/{cfg.training}{task_names[task_id]}/Step{step}.mp4", frames, fps=5)
+            avg_time = iteration_time / step
+            print(f"Average Inference Time={avg_time}")
             print(f"{cfg.training}{task_names[task_id]} Step{step}.mp4 saved")
 
     env.close()
