@@ -2700,6 +2700,7 @@ dependencies = [
     { name = "torchvision" },
     { name = "tqdm" },
     { name = "tyro" },
+    { name = "wandb" },
 ]
 
 [package.metadata]
@@ -2721,6 +2722,7 @@ requires-dist = [
     { name = "torchvision", specifier = ">=0.24.1" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "tyro", specifier = ">=1.0.3" },
+    { name = "wandb", specifier = ">=0.24.0" },
 ]
 
 [[package]]

@@ -92,7 +92,7 @@ class Config:
     suite: str = "libero_spatial"
     task_id: int = 0
     training: float = 0.05
-    steps: int = 300
+    steps: int = 500
 
 
 def main(cfg: Config):
@@ -177,14 +177,16 @@ def main(cfg: Config):
 
         if step % 10 == 0:
             imageio.mimsave(f"ObsVids/{cfg.training}{task_names[task_id]}/Step{step}.mp4", frames, fps=5)
-            avg_time = iteration_time / step
+            avg_time = iteration_time / (step + 1)
             print(f"Average Inference Time={avg_time}")
             print(f"{cfg.training}{task_names[task_id]} Step{step}.mp4 saved")
+
+        step += 1
 
     env.close()
 
     # Save video
-    imageio.mimsave("ObsVids/{cfg.training}{task_names[task_id]}/All.mp4", frames, fps=5)
+    imageio.mimsave(f"ObsVids/{cfg.training}{task_names[task_id]}/All.mp4", frames, fps=5)
     print(f"ObsVids/{cfg.training}{task_names[task_id]}/All.mp4 saved")
 
 
