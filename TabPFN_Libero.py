@@ -90,7 +90,8 @@ class MyMultiTPFN:
 class Config:
     suite: str = "libero_spatial"
     task_id: int = 0
-    training_ratio: float = 0.05
+    training: float = 0.05
+    steps: int = 300
 
 
 def main(cfg: Config):
@@ -112,7 +113,7 @@ def main(cfg: Config):
     features = features[indices]
     actions = actions[indices]
 
-    n_fit = int(features.shape[0] * cfg.training_ratio)
+    n_fit = int(features.shape[0] * cfg.training)
     x_fit, x_test = features[:n_fit], features[n_fit:]
     y_fit, y_test = actions[:n_fit], actions[n_fit:]
 
@@ -142,15 +143,18 @@ def main(cfg: Config):
     env.reset()
 
     frames = []
-    done, step, max_steps = False, 0, 300
+    done, step, max_steps = False, 0, cfg.steps
+
+    dir_path = Path(f"ObsVids/{cfg.training}{task_names[task_id]}")
+    dir_path.mkdir(exist_ok=False)
+
     while not done and step < max_steps:
         env_state = env.get_sim_state()
 
-        print(spec(env_state))
-        print("Env State Shape: ", env_state.shape)
+        # print(f"Env State Shape: {env_state.shape}")
         action = policy.predict(env_state.reshape(1, -1))
         action = np.concatenate(action, axis=0)
-        print(action.shape)
+        # print(action.shape)
 
         obs, _reward, done, _info = env.step(action)
 
@@ -165,14 +169,14 @@ def main(cfg: Config):
         step += 1
 
         if step % 10 == 0:
-            imageio.mimsave(f"LiberoStep{step}.mp4", frames, fps=5)
-            print(f"LiberoStep{step}.mp4 saved")
+            imageio.mimsave(f"ObsVids/{cfg.training}{task_names[task_id]}/Step{step}.mp4", frames, fps=5)
+            print(f"{cfg.training}{task_names[task_id]} Step{step}.mp4 saved")
 
     env.close()
 
     # Save video
-    imageio.mimsave("LiberoAll.mp4", frames, fps=5)
-    print("Libero.mp4 saved")
+    imageio.mimsave("ObsVids/{cfg.training}{task_names[task_id]}/All.mp4", frames, fps=5)
+    print("{cfg.training}{task_names[task_id]} All.mp4 saved")
 
 
 if __name__ == "__main__":
