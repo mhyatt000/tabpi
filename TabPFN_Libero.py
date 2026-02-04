@@ -185,7 +185,7 @@ def main(cfg: Config):
 
     # Save video
     imageio.mimsave("ObsVids/{cfg.training}{task_names[task_id]}/All.mp4", frames, fps=5)
-    print("{cfg.training}{task_names[task_id]} All.mp4 saved")
+    print(f"ObsVids/{cfg.training}{task_names[task_id]}/All.mp4 saved")
 
 
 if __name__ == "__main__":
