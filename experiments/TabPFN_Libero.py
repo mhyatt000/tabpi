@@ -86,6 +86,7 @@ def main(cfg: Config):
     model.fit(x_fit, y_fit)
     end = time.time()
     fit_time = end - start
+
     print(f"Done fitting in {fit_time} seconds")
 
     print("Predicting on last 10%")
@@ -94,6 +95,13 @@ def main(cfg: Config):
     predict = avgtime(10)(model.predict)
     yh = predict(x_test)
 
+    print("Predicting on last 10%")
+    start = time.time()
+    yh = regressor.predict(x_test)
+    end = time.time()
+    fit_time = end - start
+    print(f"Prediction time: {fit_time}")
+    
     print("Initializing Wandb")
     # run = cfg.wandb.initialize(cfg)
 
@@ -115,6 +123,7 @@ def main(cfg: Config):
 
     while not done and steps < max_steps:
         steps += 1
+
         states = np.array(venv.get_sim_state())
         print(f"Type: {type(states)}, Value: {states.shape}")
 
