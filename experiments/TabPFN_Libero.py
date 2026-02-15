@@ -71,13 +71,14 @@ def main(cfg: Config):
     )
 
     """
-# If multiple GPUs are detected, wrap the model in DataParallel
-        if torch.cuda.device_count() > 1:
-            # model = torch.nn.DataParallel(model)
-            model.executor_.model = torch.nn.DataParallel(model.executor_.model)
-            # model.executor_.model.to(device) # from https://github.com/PriorLabs/TabPFN/issues/215
+    # If multiple GPUs are detected, wrap the model in DataParallel
+    if torch.cuda.device_count() > 1:
+        # model = torch.nn.DataParallel(model)
+        model.executor_.model = torch.nn.DataParallel(model.executor_.model)
+        # model.executor_.model.to(device) 
+        # from https://github.com/PriorLabs/TabPFN/issues/215
 
-        model.executor_.model.to(device)
+    model.executor_.model.to(device)
     """
 
 
@@ -86,6 +87,7 @@ def main(cfg: Config):
     model.fit(x_fit, y_fit)
     end = time.time()
     fit_time = end - start
+    print(f"Fit time: {fit_time}")
 
     print(f"Done fitting in {fit_time} seconds")
 
@@ -97,7 +99,7 @@ def main(cfg: Config):
 
     print("Predicting on last 10%")
     start = time.time()
-    yh = regressor.predict(x_test)
+    #yh = regressor.predict(x_test)
     end = time.time()
     fit_time = end - start
     print(f"Prediction time: {fit_time}")
@@ -105,10 +107,10 @@ def main(cfg: Config):
     print("Initializing Wandb")
     # run = cfg.wandb.initialize(cfg)
 
-    mse = mean_squared_error(y_test, yh)
+    '''mse = mean_squared_error(y_test, yh)
     r2 = r2_score(y_test, yh)
     print("Mean Squared Error (MSE):", mse)
-    print("R² Score:", r2)
+    print("R² Score:", r2)'''
 
     quit()
     """
@@ -116,6 +118,7 @@ def main(cfg: Config):
     frames = []
     total_time = 0
     done, steps, max_steps, reward = False, 0, cfg.steps, 0
+    total_time = np.array([])
 
     vid_path = "ObsVids/"
     dir_path = Path(vid_path)
@@ -134,8 +137,9 @@ def main(cfg: Config):
         end = time.time()
         print(f'time for {act_dim} actions: {end - start} seconds')
 
-        iteration_time = end - start
-        total_time += iteration_time
+        inference_time = np.append(inference_time, start-end)
+
+        total_time = np.append(total_time, inference_time.mean())
 
         print(actions.shape)
         obs, env_reward, done, _info = venv.step(actions)
@@ -144,14 +148,13 @@ def main(cfg: Config):
         # frames.append(obs["galleryview_image"][::-1])
 
         print(f"steps={steps}")
-        print(f"Inference time={iteration_time}")
+        print(f"Inference time={inference_time.mean()}")
 
         reward += env_reward
 
         # step() sets done=self._check_success()
         if done:
             print("Task completed successfully")
-            break
 
         # sucesses = rewards.sum(axis=-1) # did any step have success?
         # sr = successes.mean()
