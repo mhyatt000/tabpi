@@ -13,8 +13,8 @@ def timeit(fn: callable) -> callable:
         result = fn(*args, **kwargs)
         end = time.perf_counter()
         elapsed = end - start
-        print(f"{fn.__name__} took {elapsed:.6f} seconds")
-        return result
+        print(f"{fn.__name__}() took {elapsed:.6f} seconds")
+        return elapsed, result
 
     return wrapper
 
@@ -24,6 +24,7 @@ def avgtime(n: int = 10):
         @wraps(fn)
         def wrapper(*args, **kwargs):
             total_time = 0.0
+            print(f"Averaging {fn.__name__}() over {n} runs")
             for _ in range(n):
                 start = time.perf_counter()
                 result = fn(*args, **kwargs)
@@ -31,8 +32,8 @@ def avgtime(n: int = 10):
                 print(f"Run took {end - start:.6f} seconds")
                 total_time += end - start
             avg_time = total_time / n
-            print(f"{fn.__name__} took an average of {avg_time:.6f} seconds over {n} runs")
-            return result
+            print(f"{fn.__name__}() took an average of {avg_time:.6f} seconds over {n} runs")
+            return avg_time, result
 
         return wrapper
 

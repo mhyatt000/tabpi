@@ -29,7 +29,7 @@ def check_download(suites, task_suite_name):
                                 use_huggingface=True)
 
 
-def h5_to_tree(path: str):
+def h5_to_tree(path: str) -> dict[str, h5py.Group]:
     def read_node(node):
         if isinstance(node, h5py.Dataset):
             return np.asarray(node)
