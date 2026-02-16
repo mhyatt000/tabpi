@@ -33,6 +33,9 @@ class Config:
 data_dir = Path(libero.__file__).parents[0] / "datasets"
 
 def main(cfg: Config):
+    print("Initializing Wandb")
+    run = cfg.wandb.initialize(cfg)
+
     venv = cfg.env.build()
     _ = venv.reset() 
 
@@ -82,21 +85,17 @@ def main(cfg: Config):
     """
 
     print(f"Fitting on {cfg.training * 100}%")
-    fit = timeit(model.fit)
-    fit_time = fit(x_fit, y_fit)
+    fit= timeit(model.fit)
+    fit_time, _ = fit(x_fit, y_fit)
 
     print("Predicting on last 10%")
     predict = timeit(model.predict)
     prediction_time, yh = predict(x_test)
     
-    print("Initializing Wandb")
-    run = cfg.wandb.initialize(cfg)
-
     mse = mean_squared_error(y_test, yh)
     r2 = r2_score(y_test, yh)
     print("Mean Squared Error (MSE):", mse)
     print("R² Score:", r2)
-
 
     frames = []
     total_time, total_success = 0, 0
