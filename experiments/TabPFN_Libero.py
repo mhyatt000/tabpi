@@ -1,22 +1,21 @@
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import imageio
 import libero
 import numpy as np
-import torch
-import tyro
-import wandb
 from rich import print
 from sklearn.metrics import mean_squared_error, r2_score
 from tabpfn_extensions.multioutput import TabPFNMultiOutputRegressor
+import torch
+import tyro
 
-from tabpi.utils.deco import timeit, avgtime
-from tabpi.utils.util import check_download, EnvFactory, extract, LiberoFactory
+from tabpi.utils.deco import timeit
+from tabpi.utils.util import check_download, EnvFactory, extract, LiberoFactory, split
 from tabpi.wab import Wandb
+import wandb
 
 
 @dataclass
@@ -32,12 +31,13 @@ class Config:
 
 data_dir = Path(libero.__file__).parents[0] / "datasets"
 
+
 def main(cfg: Config):
     print("Initializing Wandb")
     run = cfg.wandb.initialize(cfg)
 
     venv = cfg.env.build()
-    _ = venv.reset() 
+    _ = venv.reset()
 
     print(data_dir)
     check_download(data_dir, cfg.task_suite)
@@ -47,24 +47,19 @@ def main(cfg: Config):
     print(features.shape)
     print(actions.shape)
 
-    # Fitting Global Step Shuffle
+    print("Globally Shuffled")
     rng = np.random.default_rng(seed=42)
-
     indices = np.arange(features.shape[0])
     rng.shuffle(indices)
     features = features[indices]
     actions = actions[indices]
 
-    n_fit = int(features.shape[0] * cfg.training)
-    n_test = int(features.shape[0] * 0.10)
-    x_fit, x_test = features[:n_fit], features[n_test:]
-    y_fit, y_test = actions[:n_fit], actions[n_test:]
-    print("Globally Shuffled")
+    x_fit, x_test, y_fit, y_test = split(cfg.training, 0.1, features, actions)
 
     act_dim = 7
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = TabPFNMultiOutputRegressor(
-        n_estimators=act_dim,
+        # n_estimators=act_dim,
         device=device,
         # device='cuda:0',
         fit_mode="fit_with_cache",
@@ -78,24 +73,26 @@ def main(cfg: Config):
     if torch.cuda.device_count() > 1:
         # model = torch.nn.DataParallel(model)
         model.executor_.model = torch.nn.DataParallel(model.executor_.model)
-        # model.executor_.model.to(device) 
+        # model.executor_.model.to(device)
         # from https://github.com/PriorLabs/TabPFN/issues/215
 
     model.executor_.model.to(device)
     """
 
     print(f"Fitting on {cfg.training * 100}%")
-    fit= timeit(model.fit)
+    fit = timeit(model.fit)
     fit_time, _ = fit(x_fit, y_fit)
 
     print("Predicting on last 10%")
     predict = timeit(model.predict)
     prediction_time, yh = predict(x_test)
-    
+
     mse = mean_squared_error(y_test, yh)
     r2 = r2_score(y_test, yh)
     print("Mean Squared Error (MSE):", mse)
     print("R² Score:", r2)
+
+    quit()
 
     frames = []
     total_time, total_success = 0, 0
@@ -111,7 +108,7 @@ def main(cfg: Config):
 
         states = np.array(venv.get_sim_state())
 
-        print(f'Predicting actions across {states.shape[0]} envs')
+        print(f"Predicting actions across {states.shape[0]} envs")
         predict_venv_actions = timeit(model.predict)
         avg_iteration_time, actions = predict_venv_actions(states)
         total_time += avg_iteration_time
@@ -123,11 +120,11 @@ def main(cfg: Config):
         venv_rewards = np.array(venv_rewards)
 
         frames.append(obs[0]["galleryview_image"][::-1])
-       
+
         successes = venv_rewards.sum(axis=-1)
         avg_sr = successes.mean()
         total_success += avg_sr
-        print(f'Avg success rate: {avg_sr}')
+        print(f"Avg success rate: {avg_sr}")
 
         # step() sets done=self._check_success()
         done_indices = np.where(done)[0]
@@ -155,7 +152,8 @@ def main(cfg: Config):
             "Average Reward": avg_sr,
             "Steps until done": steps,
             f"sim/video_{cfg.training * 100}%": wandb.Video(
-                f"{vid_path}{int(cfg.training * 100)}%{task_name}All.mp4", format="mp4")
+                f"{vid_path}{int(cfg.training * 100)}%{task_name}All.mp4", format="mp4"
+            ),
         }
     )
 

@@ -7,9 +7,9 @@ from typing import Any, TypeAlias
 
 import h5py
 from libero.libero import benchmark
-from libero.libero.utils.download_utils import libero_dataset_download
 from libero.libero.envs import OffScreenRenderEnv
 from libero.libero.envs.venv import SubprocVectorEnv
+from libero.libero.utils.download_utils import libero_dataset_download
 import numpy as np
 from tabpfn import TabPFNRegressor
 
@@ -24,9 +24,7 @@ def check_download(suites, task_suite_name):
             print(index, ": ", name)
     else:
         print(f"{task_suite_name} datasets not found. Downloading now")
-        libero_dataset_download(datasets=task_suite_name, 
-                                download_dir = suites, 
-                                use_huggingface=True)
+        libero_dataset_download(datasets=task_suite_name, download_dir=suites, use_huggingface=True)
 
 
 def h5_to_tree(path: str) -> dict[str, h5py.Group]:
@@ -51,6 +49,19 @@ def extract(tree: dict) -> tuple[np.ndarray, np.ndarray]:
     actions = np.concatenate([sa_by_demo[k][1] for k in keys], axis=0)
 
     return states, actions
+
+
+# Assume test param is for the percentage of tail end of data you want to test on
+def split(
+    training: float, test: float, x: np.ndarray, y: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    n_train = int(x.shape[0] * training)
+    n_test = int(x.shape[0] * test)
+
+    x_train, x_test = x[:n_train], x[-n_test:]
+    y_train, y_test = y[:n_train], y[-n_test:]
+
+    return x_train, x_test, y_train, y_test
 
 
 class MyMultiTPFN:
