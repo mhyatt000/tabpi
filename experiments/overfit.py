@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import h5py
 import imageio
 import libero
 import numpy as np
@@ -23,7 +24,7 @@ class Config:
     task_suite: str = "libero_object"
     task_id: int = 0
     steps: int = 400
-    training: float = 0.10
+    training: float = 1
 
     wandb: Wandb = field(default_factory=Wandb)
     env: EnvFactory = field(default_factory=LiberoFactory)
@@ -36,14 +37,24 @@ def main(cfg: Config):
     print("Initializing Wandb")
     run = cfg.wandb.initialize(cfg)
 
+    demo_path = cfg.env.get_data_path(data_dir)
+    print(demo_path)
+    with h5py.File(demo_path, "r") as f:
+        states = f["data/demo_0/states"][()]
+        init_state = states[0]
+
+    # Needs to be same num of rows as env.n_envs
+    init_states = np.stack([init_state] * 4)
+    print(f"Inits shape: {init_states.shape}")
     venv = cfg.env.build()
     _ = venv.reset()
+    obs = venv.set_init_state(init_states)
 
     print(data_dir)
     check_download(data_dir, cfg.task_suite)
 
     raw: dict[str, Any] = cfg.env.load_data(data_dir)
-    features, actions = extract(raw)
+    features, actions = extract(raw, 0)
     print(features.shape)
     print(actions.shape)
 
@@ -63,9 +74,7 @@ def main(cfg: Config):
         device=device,
         # device='cuda:0',
         fit_mode="fit_with_cache",
-        # n_preprocessing_jobs=act_dim*2,
-        # memory_saving_mode=False,
-        inference_precision="autocast",
+        # n_preprocessing_jobs=act_dim*2
     )
 
     """
@@ -86,13 +95,13 @@ def main(cfg: Config):
     print("Predicting on last 10%")
     predict = timeit(model.predict)
     prediction_time, yh = predict(x_test)
+    print(x_test.shape)
+    print(yh.shape)
 
     mse = mean_squared_error(y_test, yh)
     r2 = r2_score(y_test, yh)
     print("Mean Squared Error (MSE):", mse)
     print("R² Score:", r2)
-
-    quit()
 
     frames = []
     total_time, total_success = 0, 0
@@ -106,7 +115,7 @@ def main(cfg: Config):
         steps += 1
         print(f"Steps={steps}")
 
-        states = np.array(venv.get_sim_state())
+        states = init_states if steps == 1 else np.array(venv.get_sim_state())
 
         print(f"Predicting actions across {states.shape[0]} envs")
         predict_venv_actions = timeit(model.predict)
