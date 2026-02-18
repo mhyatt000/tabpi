@@ -210,5 +210,4 @@ marimo/_lsp/
 __marimo__/
 
 
-run.sh
 wandb/
