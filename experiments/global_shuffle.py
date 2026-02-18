@@ -56,13 +56,11 @@ def main(cfg: Config):
 
     x_fit, x_test, y_fit, y_test = split(cfg.training, 0.1, features, actions)
 
-    act_dim = 7
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = TabPFNMultiOutputRegressor(
-        # n_estimators=act_dim,
+        # n_estimators=4,
         device=device,
         # device='cuda:0',
-        fit_mode="fit_with_cache",
         # n_preprocessing_jobs=act_dim*2,
         # memory_saving_mode=False,
         inference_precision="autocast",
@@ -92,8 +90,6 @@ def main(cfg: Config):
     r2 = r2_score(y_test, yh)
     print("Mean Squared Error (MSE):", mse)
     print("R² Score:", r2)
-
-    quit()
 
     frames = []
     total_time, total_success = 0, 0
