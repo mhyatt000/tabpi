@@ -39,7 +39,7 @@ def h5_to_tree(path: str) -> dict[str, h5py.Group]:
         return read_node(f)
 
 
-def extract(tree: dict, demo=None) -> tuple[np.ndarray, np.ndarray]:
+def extract(tree: dict, episodes: bool = False, steps: bool = False, demo=None) -> tuple[np.ndarray, np.ndarray]:
     demos = tree["data"]
 
     if demo is None:
@@ -51,8 +51,13 @@ def extract(tree: dict, demo=None) -> tuple[np.ndarray, np.ndarray]:
         sa_by_demo = {key: (demos[key]["states"], demos[key]["actions"])}
 
     keys = sa_by_demo.keys()
-    states = np.concatenate([sa_by_demo[k][0] for k in keys], axis=0)
-    actions = np.concatenate([sa_by_demo[k][1] for k in keys], axis=0)
+
+    if steps:
+        states = np.concatenate([sa_by_demo[k][0] for k in keys], axis=0)
+        actions = np.concatenate([sa_by_demo[k][1] for k in keys], axis=0)
+    elif episodes:
+        states = np.array([sa_by_demo[k][0] for k in keys], dtype=object)
+        actions = np.array([sa_by_demo[k][1] for k in keys], dtype=object)
 
     return states, actions
 

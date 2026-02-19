@@ -33,9 +33,6 @@ data_dir = Path(libero.__file__).parents[0] / "datasets"
 
 
 def main(cfg: Config):
-    print("Initializing Wandb")
-    run = cfg.wandb.initialize(cfg)
-
     venv = cfg.env.build()
     _ = venv.reset()
 
@@ -43,7 +40,7 @@ def main(cfg: Config):
     check_download(data_dir, cfg.task_suite)
 
     raw: dict[str, Any] = cfg.env.load_data(data_dir)
-    features, actions = extract(raw)
+    features, actions = extract(raw, steps=True)
     print(features.shape)
     print(actions.shape)
 
@@ -90,6 +87,9 @@ def main(cfg: Config):
     r2 = r2_score(y_test, yh)
     print("Mean Squared Error (MSE):", mse)
     print("R² Score:", r2)
+
+    print("Initializing Wandb")
+    run = cfg.wandb.initialize(cfg)
 
     frames = []
     total_time, total_success = 0, 0

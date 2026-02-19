@@ -26,6 +26,8 @@ class Config:
     steps: int = 400
     training: float = 1
 
+    demo: int = 0
+
     wandb: Wandb = field(default_factory=Wandb)
     env: EnvFactory = field(default_factory=LiberoFactory)
 
@@ -34,10 +36,13 @@ data_dir = Path(libero.__file__).parents[0] / "datasets"
 
 
 def main(cfg: Config):
+    task_name = cfg.env.get_benchmark(cfg.task_suite).get_task(cfg.task_id).name
+
     demo_path = cfg.env.get_data_path(data_dir)
     print(demo_path)
     with h5py.File(demo_path, "r") as f:
-        states = f["data/demo_0/states"][()]
+        states = f[f"data/demo_{cfg.demo}/states"][()]
+        actions = f[f"data/demo_{cfg.demo}/actions"][()]
         init_state = states[0]
 
     # Needs to be same num of rows as env.n_envs
@@ -51,7 +56,7 @@ def main(cfg: Config):
     check_download(data_dir, cfg.task_suite)
 
     raw: dict[str, Any] = cfg.env.load_data(data_dir)
-    features, actions = extract(raw, 0)
+    features, actions = extract(raw, cfg.demo)
     print(features.shape)
     print(actions.shape)
 
@@ -61,6 +66,9 @@ def main(cfg: Config):
     rng.shuffle(indices)
     features = features[indices]
     actions = actions[indices]
+
+    gripper_min = actions[:, 6].min()
+    gripper_max = actions[:, 6].max()
 
     x_fit, x_test, y_fit, y_test = split(cfg.training, 0.1, features, actions)
 
@@ -114,6 +122,22 @@ def main(cfg: Config):
     dir_path = Path(vid_path)
     dir_path.mkdir(exist_ok=True)
 
+    while steps < actions.shape[0]:
+        print(f"Repeating demo_{cfg.demo} actions{steps}")
+        action = np.stack([actions[steps]] * 4)
+        obs, venv_rewards, done, _info = venv.step(action)
+
+        frames.append(obs[0]["galleryview_image"][::-1])
+        steps += 1
+
+    imageio.mimsave(f"{vid_path}Demo_{cfg.demo}{task_name}All.mp4", frames, fps=30)
+    print(f"{vid_path}Demo_{cfg.demo}{task_name}All.mp4 saved")
+
+    cfg.wandb.log({f"sim/video_demo{cfg.demo}": wandb.Video(f"{vid_path}Demo_0{task_name}All.mp4", format="mp4")})
+
+    steps = 0
+    _ = venv.reset()
+
     while not done_global and steps < max_steps:
         steps += 1
         print(f"Steps={steps}")
@@ -144,18 +168,23 @@ def main(cfg: Config):
             print(f"Task completed successfully in venv {done_indices}")
             done_global = True
 
+    cfg.wandb.log({"Gripper Pred": actions[:, -1]})
+
     avg_time = total_time / steps
     avg_sr = total_success / steps
 
     venv.close()
 
     # Save video
-    task_name = cfg.env.get_benchmark(cfg.task_suite).get_task(cfg.task_id).name
     imageio.mimsave(f"{vid_path}{int(cfg.training * 100)}%{task_name}All.mp4", frames, fps=30)
     print(f"{vid_path}{int(cfg.training * 100)}%{task_name}All.mp4 saved")
 
     cfg.wandb.log(
         {
+            "Task": task_name,
+            "Demo": cfg.demo,
+            "Gripper Min": gripper_min,
+            "Gripper Max": gripper_max,
             "Fit Time": fit_time,
             "Prediction Time": prediction_time,
             "MSE": mse,
