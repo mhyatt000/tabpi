@@ -63,8 +63,6 @@ def main(cfg: Config):
 
     x_fit, x_test, y_fit, y_test = split(cfg.training, 0.1, features, actions)
 
-    quit()
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = TabPFNMultiOutputRegressor(
         # n_estimators=4,
@@ -116,6 +114,8 @@ def main(cfg: Config):
         print(f"Repeating demo_{cfg.demo} actions_demo{steps}")
         action = np.stack([actions_demo[steps]] * 4)
         obs, venv_rewards, done, _info = venv.step(action)
+        done = np.array(done)
+        print(f"Done: {done}")
 
         frames.append(obs[0]["galleryview_image"][::-1])
         steps += 1
@@ -125,6 +125,7 @@ def main(cfg: Config):
 
     cfg.wandb.log({f"demo/video_demo{cfg.demo}": wandb.Video(f"{vid_path}Demo_0{task_name}All.mp4", format="mp4")})
 
+    frames = []
     venv.reset()
     total_time, total_success = 0, 0
     done_global, steps, max_steps = False, 0, cfg.steps
