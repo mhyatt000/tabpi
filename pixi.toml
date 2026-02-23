@@ -26,7 +26,7 @@ cmd = "uvx ruff check . --select C901"
 description = "Check for functions with cyclomatic complexity > 10"
 
 [tasks.libero]
-cmd = "uv run experiments/global_shuffle.py"
+cmd = "uv run experiments/demo_shuffle.py"
 depends-on = []
 
 [dependencies]

@@ -9,12 +9,12 @@ import numpy as np
 from rich import print
 from sklearn.metrics import mean_squared_error, r2_score
 from tabpfn_extensions.multioutput import TabPFNMultiOutputRegressor
+from tabpi.utils.util import check_download, EnvFactory, extract, LiberoFactory, split
+from tabpi.wab import Wandb
 import torch
 import tyro
 
 from tabpi.utils.deco import timeit
-from tabpi.utils.util import check_download, EnvFactory, extract, LiberoFactory, split
-from tabpi.wab import Wandb
 import wandb
 
 
@@ -39,8 +39,8 @@ def main(cfg: Config):
     print(data_dir)
     check_download(data_dir, cfg.task_suite)
 
-    raw: dict[str, Any] = cfg.env.load_data(data_dir)
-    features, actions = extract(raw, steps=True)
+    raw_data: dict[str, Any] = cfg.env.load_data(data_dir)
+    features, actions = extract(raw_data, steps=True)
     print(features.shape)
     print(actions.shape)
 
@@ -111,7 +111,6 @@ def main(cfg: Config):
         total_time += avg_iteration_time
         print(f"Avg inference time={avg_iteration_time}")
 
-        print(actions.shape)
         obs, venv_rewards, done, _info = venv.step(actions)
         done = np.array(done)
         venv_rewards = np.array(venv_rewards)
@@ -128,6 +127,8 @@ def main(cfg: Config):
         if len(done_indices) > 0:
             print(f"Task completed successfully in venv {done_indices}")
             done_global = True
+
+        cfg.wandb.log({"Gripper Pred": actions[0][:, -1]})
 
     avg_time = total_time / steps
     avg_sr = total_success / steps

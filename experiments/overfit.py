@@ -13,9 +13,10 @@ from tabpfn_extensions.multioutput import TabPFNMultiOutputRegressor
 import torch
 import tyro
 
+from tabpi.envs.libero import EnvFactory, LiberoFactory
+from tabpi.utils.data import check_download, split
 from tabpi.utils.deco import timeit
-from tabpi.utils.util import check_download, EnvFactory, extract, LiberoFactory, split
-from tabpi.wab import Wandb
+from tabpi.utils.wab import Wandb
 import wandb
 
 
@@ -42,33 +43,23 @@ def main(cfg: Config):
     print(demo_path)
     with h5py.File(demo_path, "r") as f:
         states = f[f"data/demo_{cfg.demo}/states"][()]
-        actions = f[f"data/demo_{cfg.demo}/actions"][()]
+        actions_demo = f[f"data/demo_{cfg.demo}/actions"][()]
         init_state = states[0]
 
     # Needs to be same num of rows as env.n_envs
     init_states = np.stack([init_state] * 4)
     print(f"Inits shape: {init_states.shape}")
     venv = cfg.env.build()
-    _ = venv.reset()
+    venv.reset()
     obs = venv.set_init_state(init_states)
 
     print(data_dir)
     check_download(data_dir, cfg.task_suite)
 
-    raw: dict[str, Any] = cfg.env.load_data(data_dir)
-    features, actions = extract(raw, cfg.demo)
+    features = states
+    actions = actions_demo
     print(features.shape)
     print(actions.shape)
-
-    print("Globally Shuffled")
-    rng = np.random.default_rng(seed=42)
-    indices = np.arange(features.shape[0])
-    rng.shuffle(indices)
-    features = features[indices]
-    actions = actions[indices]
-
-    gripper_min = actions[:, 6].min()
-    gripper_max = actions[:, 6].max()
 
     x_fit, x_test, y_fit, y_test = split(cfg.training, 0.1, features, actions)
 
@@ -101,8 +92,6 @@ def main(cfg: Config):
     predict = timeit(model.predict)
     _, yh_train = predict(x_fit)
     prediction_time, yh_test = predict(x_test)
-    print("Regression Fit Predictions shape:", yh_train.shape)
-    print("Regression Test Predictions shape:", yh_test.shape)
 
     mse = mean_squared_error(y_test, yh_test)
     r2_train = r2_score(y_fit, yh_train)
@@ -115,16 +104,15 @@ def main(cfg: Config):
     run = cfg.wandb.initialize(cfg)
 
     frames = []
-    total_time, total_success = 0, 0
-    done_global, steps, max_steps = False, 0, cfg.steps
+    steps = 0
 
     vid_path = "ObsVids/"
     dir_path = Path(vid_path)
     dir_path.mkdir(exist_ok=True)
 
-    while steps < actions.shape[0]:
-        print(f"Repeating demo_{cfg.demo} actions{steps}")
-        action = np.stack([actions[steps]] * 4)
+    while steps < actions_demo.shape[0]:
+        print(f"Repeating demo_{cfg.demo} actions_demo{steps}")
+        action = np.stack([actions_demo[steps]] * 4)
         obs, venv_rewards, done, _info = venv.step(action)
 
         frames.append(obs[0]["galleryview_image"][::-1])
@@ -133,10 +121,11 @@ def main(cfg: Config):
     imageio.mimsave(f"{vid_path}Demo_{cfg.demo}{task_name}All.mp4", frames, fps=30)
     print(f"{vid_path}Demo_{cfg.demo}{task_name}All.mp4 saved")
 
-    cfg.wandb.log({f"sim/video_demo{cfg.demo}": wandb.Video(f"{vid_path}Demo_0{task_name}All.mp4", format="mp4")})
+    cfg.wandb.log({f"demo/video_demo{cfg.demo}": wandb.Video(f"{vid_path}Demo_0{task_name}All.mp4", format="mp4")})
 
-    steps = 0
-    _ = venv.reset()
+    venv.reset()
+    total_time, total_success = 0, 0
+    done_global, steps, max_steps = False, 0, cfg.steps
 
     while not done_global and steps < max_steps:
         steps += 1
@@ -150,9 +139,11 @@ def main(cfg: Config):
         total_time += avg_iteration_time
         print(f"Avg inference time={avg_iteration_time}")
 
-        print(actions.shape)
         obs, venv_rewards, done, _info = venv.step(actions)
         done = np.array(done)
+        print(f"Done: {done}")
+        success = venv.check_success()
+        print(f"Check Success: {success}")
         venv_rewards = np.array(venv_rewards)
 
         frames.append(obs[0]["galleryview_image"][::-1])
@@ -168,7 +159,7 @@ def main(cfg: Config):
             print(f"Task completed successfully in venv {done_indices}")
             done_global = True
 
-    cfg.wandb.log({"Gripper Pred": actions[:, -1]})
+        cfg.wandb.log({"Avg Gripper Pos": actions[:, -1]})
 
     avg_time = total_time / steps
     avg_sr = total_success / steps
@@ -181,10 +172,6 @@ def main(cfg: Config):
 
     cfg.wandb.log(
         {
-            "Task": task_name,
-            "Demo": cfg.demo,
-            "Gripper Min": gripper_min,
-            "Gripper Max": gripper_max,
             "Fit Time": fit_time,
             "Prediction Time": prediction_time,
             "MSE": mse,

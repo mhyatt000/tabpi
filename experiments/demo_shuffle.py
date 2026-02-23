@@ -12,9 +12,10 @@ from tabpfn_extensions.multioutput import TabPFNMultiOutputRegressor
 import torch
 import tyro
 
+from tabpi.envs.libero import EnvFactory, LiberoFactory
+from tabpi.utils.data import check_download, extract, split
 from tabpi.utils.deco import timeit
-from tabpi.utils.util import check_download, EnvFactory, extract, LiberoFactory, split
-from tabpi.wab import Wandb
+from tabpi.utils.wab import Wandb
 import wandb
 
 
@@ -39,7 +40,7 @@ def main(cfg: Config):
     print(data_dir)
     check_download(data_dir, cfg.task_suite)
 
-    raw: dict[str, Any] = cfg.env.load_data(data_dir)
+    raw_data: dict[str, Any] = cfg.env.load_data(data_dir)
     features, actions = extract(raw, episodes=True)
     print(features.shape)
     print(actions.shape)
@@ -48,10 +49,13 @@ def main(cfg: Config):
     rng = np.random.default_rng(seed=42)
     indices = np.arange(features.shape[0])
     rng.shuffle(indices)
+    print(indices)
     features = features[indices]
     actions = actions[indices]
 
     x_fit, x_test, y_fit, y_test = split(cfg.training, 0.1, features, actions)
+
+    quit()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = TabPFNMultiOutputRegressor(
@@ -129,8 +133,7 @@ def main(cfg: Config):
             print(f"Task completed successfully in venv {done_indices}")
             done_global = True
 
-        # TODO
-        # cfg.wand.log({})
+        cfg.wandb.log({"Gripper Pred": actions[:, -1]})
 
     avg_time = total_time / steps
     avg_sr = total_success / steps
