@@ -12,12 +12,12 @@ from sklearn.metrics import mean_squared_error, r2_score
 from tabpfn_extensions.multioutput import TabPFNMultiOutputRegressor
 import torch
 import tyro
+import wandb
 
 from tabpi.envs.libero import EnvFactory, LiberoFactory
 from tabpi.utils.data import check_download, split
 from tabpi.utils.deco import timeit
 from tabpi.utils.wab import Wandb
-import wandb
 
 
 @dataclass
