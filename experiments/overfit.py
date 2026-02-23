@@ -63,6 +63,8 @@ def main(cfg: Config):
 
     x_fit, x_test, y_fit, y_test = split(cfg.training, 0.1, features, actions)
 
+    quit()
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = TabPFNMultiOutputRegressor(
         # n_estimators=4,

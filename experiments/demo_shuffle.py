@@ -41,7 +41,7 @@ def main(cfg: Config):
     check_download(data_dir, cfg.task_suite)
 
     raw_data: dict[str, Any] = cfg.env.load_data(data_dir)
-    features, actions = extract(raw, episodes=True)
+    features, actions = extract(raw_data, episodes=True)
     print(features.shape)
     print(actions.shape)
 
@@ -49,13 +49,10 @@ def main(cfg: Config):
     rng = np.random.default_rng(seed=42)
     indices = np.arange(features.shape[0])
     rng.shuffle(indices)
-    print(indices)
     features = features[indices]
     actions = actions[indices]
 
     x_fit, x_test, y_fit, y_test = split(cfg.training, 0.1, features, actions)
-
-    quit()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = TabPFNMultiOutputRegressor(
