@@ -54,7 +54,7 @@ def rollout(max_steps: int, policy: Any, venv: Any, timer: Any) -> dict[str, Any
 
     avg_sr = total_success / len(frames) if frames else 0.0
     return {
-        "video": wandb.Video(frames, fps=30, format="mp4"),
+        "video": wandb.Video(np.array(frames), fps=30, format="mp4"),
         "len": len(frames),
         "avg_sr": avg_sr,
     }
