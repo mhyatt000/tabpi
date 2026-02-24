@@ -7,9 +7,9 @@ from pathlib import Path
 from typing import TypeAlias
 
 from flax.traverse_util import flatten_dict
+import wandb
 
 import tabpi
-import wandb
 
 StrPath: TypeAlias = str | Path
 
@@ -23,7 +23,7 @@ class WandbMode(StrEnum):
 @dataclass
 class Wandb:
     project: str = "tabpi"
-    group: str = "ssl-luc"
+    group: str = "luc-ssl"
     entity: str | None = None
 
     # id of run to resume... optionally use f'{id}?_step={step}'
