@@ -28,7 +28,7 @@ dependencies = [
     "torchvision>=0.24.1",
     "tqdm>=4.67.1",
     "tyro>=1.0.3",
-    "wandb>=0.24.0",
+    "wandb[media]>=0.24.0",
 ]
 
 [dependency-groups]
