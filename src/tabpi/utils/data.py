@@ -35,27 +35,45 @@ def h5_to_tree(path: str) -> dict[str, h5py.Group]:
         return read_node(f)
 
 
-def extract(tree: dict, episodes: bool = False, steps: bool = False, demo=None) -> tuple[np.ndarray, np.ndarray]:
+def extract(tree: dict, shuffle: str, demo) -> tuple[np.ndarray, np.ndarray]:
     demos = tree["data"]
 
     if demo is None:
         sa_by_demo = {k: (d["states"], d["actions"]) for k, d in demos.items()}
 
-    else:
+    elif isinstance(demo, int):
         key = f"demo_{demo}"
         sa_by_demo = {key: (demos[key]["states"], demos[key]["actions"])}
 
     keys = sa_by_demo.keys()
 
-    if steps:
+    if shuffle == "steps" or shuffle is None:
         states = np.concatenate([sa_by_demo[k][0] for k in keys], axis=0)
         actions = np.concatenate([sa_by_demo[k][1] for k in keys], axis=0)
 
-    elif episodes:  # Can't use np.stack since different dimensions
+    elif shuffle == "demos":  # Can't use np.stack since different dimensions
         states = np.array([sa_by_demo[k][0] for k in keys], dtype=object)
         actions = np.array([sa_by_demo[k][1] for k in keys], dtype=object)
 
     return states, actions
+
+
+def shuffle(
+    training: float, features, actions, shuffle: str, test: float = 0.1
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    if shuffle is not None:
+        x = "Step Shuffle" if shuffle == "step" else "Demo Shuffle"
+        print(x)
+
+        rng = np.random.default_rng(seed=42)
+        indices = np.arange(features.shape[0])
+
+        rng.shuffle(indices)
+        features = features[indices]
+        actions = actions[indices]
+
+    x_fit, x_test, y_fit, y_test = split(training, test, features, actions)
+    return x_fit, x_test, y_fit, y_test
 
 
 # Assume test param is for the percentage of tail end of data you want to test on

@@ -8,53 +8,60 @@ import numpy as np
 from rich import print
 from sklearn.metrics import mean_squared_error, r2_score
 from tqdm import tqdm
+
 import wandb
 
 
 def val_metrics(model: Any, x_test: np.ndarray, y_test: np.ndarray) -> dict[str, float]:
     print("Predicting on last 10%")
     yh = model.predict(x_test)
-    print(yh.shape)
 
     mse = mean_squared_error(y_test, yh)
     r2 = r2_score(y_test, yh)
     print("Mean Squared Error (MSE):", mse)
     print("R² Score:", r2)
+
     return {"mse": mse, "r2": r2}
 
 
-def rollout(max_steps: int, policy: Any, venv: Any, timer: Any) -> dict[str, Any]:
-    _ = venv.reset()
+def rollout(max_steps: int, policy: Any, venv: Any, timer: Any, demo: bool = False, init_state=None) -> dict[str, Any]:
+    if demo:
+        env_name = "demo"
+        init_states = np.stack([init_state] * venv.env_num)
+        venv.set_init_state(init_states)
+    else:
+        env_name = "sim"
 
     frames = []
-    total_success = 0.0
+    success = 0
 
     bar = tqdm(range(max_steps), desc="Rollout")
 
-    for _ in bar:
+    for i in bar:
         states = np.array(venv.get_sim_state())
 
         with timer("fwd"):
-            actions = policy(states)
-        with timer("sim"):
+            actions = policy(states) if not isinstance(policy, np.ndarray) else np.stack([policy[i]] * venv.env_num)
+        with timer(env_name):
             obs, rewards, dones, _info = venv.step(actions)
 
-        rewards = np.array(rewards)
         frames.append(obs[0]["galleryview_image"][::-1])
 
+        dones = np.array(dones)
+        rewards = np.array(rewards)
         successes = rewards.sum(axis=-1)
-        avg_sr = successes.mean()
-        total_success += avg_sr
 
-        desc = f"Step: {len(frames)}/{max_steps}, Avg SR: {avg_sr:.3f}"
+        desc = f"Step: {len(frames)}/{max_steps} SR: {successes} Done: {dones}"
         bar.set_description(desc)
 
-        if np.array(dones).all():
+        if dones.all():
+            bar.write("Task Completed!")
             break
 
-    avg_sr = total_success / len(frames) if frames else 0.0
+    venv.reset()
+
     return {
-        "video": wandb.Video(np.array(frames), fps=30, format="mp4"),
+        f"{env_name}/video": wandb.Video(np.array(frames), fps=30, format="mp4"),
         "len": len(frames),
-        "avg_sr": avg_sr,
+        "sr": successes,
     }

@@ -22,26 +22,26 @@ class EnvFactory:
 
 @dataclass
 class LiberoFactory(EnvFactory):
-    suite: str = "libero_object"  # used to select group of envs
+    suite: str = "libero_object"
     id: int = 0
-    max_steps: int = 400
     n_envs: int = 4
-    vectorized: bool = True  # you can set this to False to test non-vectorized envs
+    vectorized: bool = True
 
-    # TODO why does field resolve to tyro subcommand ?
-    # task: str = field(init=False)  # used to search for dataset name
+    # TODO Unhide this
+    horizon: int = 400
+
+    overfit: bool = False
+    demo: int = None
 
     def __post_init__(self):
-        bench = self.get_benchmark(self.suite)
-        self.task = bench.get_task(self.id)
+        self.bench = benchmark.get_benchmark(self.suite)()
+        self.task = self.bench.get_task(self.id)
 
-    def get_benchmark(self, suite: str) -> benchmark.Benchmark:
-        return benchmark.get_benchmark(self.suite)()
+        if self.overfit:
+            self.demo = 0
 
     def build(self) -> Env:
-        bench = self.get_benchmark(self.suite)
-
-        bddl_file_path: Path = bench.get_task_bddl_file_path(self.id)
+        bddl_file_path: Path = self.bench.get_task_bddl_file_path(self.id)
 
         print(f"Using task: {self.task.name}")
 
@@ -50,7 +50,7 @@ class LiberoFactory(EnvFactory):
             "camera_heights": 720,  # HD resolution
             "camera_widths": 1280,
             "camera_names": "galleryview",
-            # TODO max steps ...
+            "horizon": self.horizon,  # max number of steps per episode
         }
 
         if self.vectorized:
@@ -60,13 +60,8 @@ class LiberoFactory(EnvFactory):
         env = OffScreenRenderEnv(**env_args)
         return env
 
-    def get_data_path(self, suites_root: Path):
-        bench = self.get_benchmark(self.suite)
-        demo_path: str = bench.get_task_demonstration(self.id)
-        full_path: Path = suites_root / demo_path
-        return full_path
-
     def load_data(self, suites_root: Path):
-        data_path = self.get_data_path(suites_root)
+        data_path = suites_root / self.bench.get_task_demonstration(self.id)
+
         tree = h5_to_tree(data_path)
         return tree
