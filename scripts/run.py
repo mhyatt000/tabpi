@@ -69,6 +69,7 @@ def main(cfg: Config):
     cfg.wandb.initialize(cfg)
 
     if cfg.env.overfit:
+        print(f"Running demo_{cfg.env.demo}")
         demo_result = rollout(cfg.env.horizon, actions, venv, t, cfg.env.overfit, features[0])
 
     # TODO use this in rollout, instead of passing it in
