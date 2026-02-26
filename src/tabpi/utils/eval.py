@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import random
 from typing import Any
 
+import imageio
 import numpy as np
 from rich import print
 from sklearn.metrics import mean_squared_error, r2_score
@@ -60,8 +62,10 @@ def rollout(max_steps: int, policy: Any, venv: Any, timer: Any, demo: bool = Fal
 
     venv.reset()
 
+    imageio.mimsave(f"ObsVids/{env_name}_rollout{random.randint(1, 1000)}.mp4", frames, fps=30)
+
     return {
-        f"{env_name}/video": wandb.Video(np.array(frames), fps=30, format="mp4"),
+        f"{env_name}/video": wandb.Video(f"ObsVids/{env_name}_rollout.mp4", format="mp4"),
         "len": len(frames),
         "sr": successes,
     }

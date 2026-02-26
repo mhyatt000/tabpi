@@ -38,7 +38,7 @@ class LiberoFactory(EnvFactory):
         self.task = self.bench.get_task(self.id)
 
         if self.overfit:
-            self.demo = 0
+            self.demo = 20
 
     def build(self) -> Env:
         bddl_file_path: Path = self.bench.get_task_bddl_file_path(self.id)
