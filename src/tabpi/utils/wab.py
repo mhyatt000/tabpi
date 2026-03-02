@@ -23,7 +23,7 @@ class WandbMode(StrEnum):
 @dataclass
 class Wandb:
     project: str = "tabpi"
-    group: str = "ssl-luc"
+    group: str = "luc-ssl"
     entity: str | None = None
 
     # id of run to resume... optionally use f'{id}?_step={step}'
