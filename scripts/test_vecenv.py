@@ -14,9 +14,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 import numpy as np
-from tyro import cli
-
 from tabpi.utils.util import EnvFactory, LiberoFactory
+from tyro import cli
 
 
 @dataclass
