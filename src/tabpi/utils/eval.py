@@ -10,6 +10,7 @@ import numpy as np
 from rich import print
 from sklearn.metrics import mean_squared_error, r2_score
 from tqdm import tqdm
+
 import wandb
 
 
@@ -25,13 +26,13 @@ def val_metrics(model: Any, x_test: np.ndarray, y_test: np.ndarray) -> dict[str,
     return {"mse": mse, "r2": r2}
 
 
-def rollout(max_steps: int, policy: Any, venv: Any, timer: Any, demo: bool = False, init_state=None) -> dict[str, Any]:
-    if demo:
-        env_name = "demo"
+def rollout(
+    max_steps: int, policy: Any, venv: Any, timer: Any, overfit: bool = False, demo: bool = False, init_state=None
+) -> dict[str, Any]:
+    env_name = "demo" if demo else "sim"
+    if overfit:
         init_states = np.stack([init_state] * venv.env_num)
         venv.set_init_state(init_states)
-    else:
-        env_name = "sim"
 
     frames = []
     success = 0

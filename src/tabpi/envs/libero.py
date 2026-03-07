@@ -9,6 +9,7 @@ from typing import Any, TypeAlias
 from libero.libero import benchmark
 from libero.libero.envs import OffScreenRenderEnv
 from libero.libero.envs.venv import SubprocVectorEnv
+from libero.libero.utils.download_utils import libero_dataset_download
 
 from tabpi.utils.data import h5_to_tree
 
@@ -60,8 +61,19 @@ class LiberoFactory(EnvFactory):
         env = OffScreenRenderEnv(**env_args)
         return env
 
-    def load_data(self, suites_root: Path):
-        data_path = suites_root / self.bench.get_task_demonstration(self.id)
+    def load_data(self):
+        self.suites_path = Path(libero.__file__).parents[0] / "datasets"
+        data_path = self.suites_pth / self.bench.get_task_demonstration(self.id)
 
         tree = h5_to_tree(data_path)
         return tree
+
+    def check_download(self):
+        if os.path.exists(self.suites_path):
+            print("Datasets found:")
+            t_names = [f.stem for f in self.suites_path.glob("*.hdf5")]
+            for index, name in enumerate(t_names):
+                print(index, ": ", name)
+        else:
+            print(f"{self.suite} datasets not found. Downloading now")
+            libero_dataset_download(datasets=self.suite, download_dir=self.suites_path, use_huggingface=True)

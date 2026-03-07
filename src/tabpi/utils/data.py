@@ -2,25 +2,9 @@
 
 from __future__ import annotations
 
-import os
-
 import h5py
-from libero.libero.utils.download_utils import libero_dataset_download
 import numpy as np
 from rich import print
-
-
-def check_download(suites, task_suite_name):
-    suite_dir = suites.joinpath(task_suite_name)
-
-    if os.path.exists(suite_dir):
-        print("Datasets found:")
-        t_names = [f.stem for f in suite_dir.glob("*.hdf5")]
-        for index, name in enumerate(t_names):
-            print(index, ": ", name)
-    else:
-        print(f"{task_suite_name} datasets not found. Downloading now")
-        libero_dataset_download(datasets=task_suite_name, download_dir=suites, use_huggingface=True)
 
 
 def h5_to_tree(path: str) -> dict[str, h5py.Group]:
