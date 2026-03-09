@@ -55,6 +55,8 @@ def shuffle(
         rng.shuffle(indices)
         features = features[indices]
         actions = actions[indices]
+    else:
+        print("No Shuffle")
 
     x_fit, x_test, y_fit, y_test = split(training, test, features, actions)
     return x_fit, x_test, y_fit, y_test

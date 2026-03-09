@@ -41,7 +41,7 @@ def main(cfg: Config):
     features, actions = extract(raw_data, cfg.shuffle, cfg.env.demo)
     print(features.shape, actions.shape)
 
-    x_fit, x_test, y_fit, y_test = shuffle(cfg.fit, features, actions, cfg.shuffle)
+    x_fit, x_test, y_fit, y_test = shuffle(cfg.fit, features, actions, None)
 
     print(x_fit.shape, y_fit.shape, x_test.shape, y_test.shape)
 
