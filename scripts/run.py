@@ -8,7 +8,8 @@ from tabpfn_extensions.multioutput import TabPFNMultiOutputRegressor
 import torch
 import tyro
 
-from tabpi.envs.libero import EnvFactory, LiberoFactory
+from tabpi.envs.env import EnvFactory
+from tabpi.envs.robosuite import RoboSuiteFactory
 from tabpi.models.tabpfn_policy import ModelPolicy
 from tabpi.utils.data import extract, shuffle
 from tabpi.utils.eval import rollout, val_metrics
@@ -20,10 +21,10 @@ import wandb
 @dataclass
 class Config:
     fit: float = 0.10
-    shuffle: str = None
+    shuffle: str | None = None
 
     wandb: Wandb = field(default_factory=Wandb)
-    env: EnvFactory = field(default_factory=LiberoFactory)
+    env: EnvFactory = field(default_factory=RoboSuiteFactory)
     debug: bool = False
 
     def __post_init__(self):
@@ -40,6 +41,8 @@ def main(cfg: Config):
     features, actions = extract(raw_data, cfg.shuffle, cfg.env.demo)
 
     x_fit, x_test, y_fit, y_test = shuffle(cfg.fit, features, actions, cfg.shuffle)
+
+    print(x_fit.shape, y_fit.shape, x_test.shape, y_test.shape)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = TabPFNMultiOutputRegressor(
@@ -65,12 +68,11 @@ def main(cfg: Config):
 
     if cfg.env.overfit:
         print(f"Running demo_{cfg.env.demo}")
-        demo_result = rollout(cfg.env.horizon, actions, venv, t, cfg.env.overfit, True, features[0])
+        demo_result = rollout(cfg.env, cfg.env.horizon, actions, venv, t, cfg.env.overfit, True, features[0])
 
-    # TODO use this in rollout, instead of passing it in
-    print(f"Horizon: {venv.get_env_attr('horizon')}")
+    print(f"Horizon: {cfg.env.horizon}")
     pi = ModelPolicy(model)
-    result = rollout(cfg.env.horizon, pi, venv, t, cfg.env.overfit, False, features[0])
+    result = rollout(cfg.env, cfg.env.horizon, pi, venv, t, cfg.env.overfit, False, features[0])
 
     times = t.get_average_times()
     metrics = {

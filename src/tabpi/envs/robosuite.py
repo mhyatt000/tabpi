@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
+import subprocess
 import sys
-from typing import Any, TypeAlias
 
 import robomimic
 import robosuite as suite
@@ -13,15 +14,24 @@ from robosuite.controllers import load_controller_config
 
 from tabpi.utils.data import h5_to_tree
 
-Env: TypeAlias = Any
+from .env import EnvFactory
 
 
 @dataclass
-class RobotSuiteFactory(EnvFactory):
+class RoboSuiteFactory(EnvFactory):
     task: str = "Lift"
-    n_envs: int = 4
-    vectorized: bool = True
+    n_envs: int = 0
+    vectorized: bool = False
     horizon: int = 600
+
+    overfit: bool = False
+    demo: int | None = None
+
+    def __post_init__(self):
+        self.suites_path = (Path(robomimic.__file__).parents[0] / "../datasets" / self.task.lower()).resolve()
+
+        if self.overfit and self.demo is None:
+            self.demo = 0
 
     def build(self):
         controller_config = load_controller_config(default_controller="OSC_POSE")
@@ -34,7 +44,7 @@ class RobotSuiteFactory(EnvFactory):
             "has_offscreen_renderer": True,
             "use_camera_obs": True,
             "use_object_obs": True,
-            "camera_names": "galleryview",
+            "camera_names": "agentview",
             "camera_heights": 720,
             "camera_widths": 1280,
             "control_freq": 20,
@@ -42,16 +52,11 @@ class RobotSuiteFactory(EnvFactory):
             "reward_shaping": True,
         }
 
-        if self.vectorized:
-            env_fns = [lambda: suite.make(**env_kwargs) for _ in range(self.n_envs)]
-            return SubprocVectorEnv(env_fns)
+        self.env = suite.make(**env_kwargs)
+        return self.env
 
-        env = suite.make(**env_kwargs)
-        return env
-
-    def load_data(self, data_path):
-        self.suites_path = Path(robomimic.__file__).parents[0] / "../datasets"
-        data_path = self.suites_path / self.task.lower()
+    def load_data(self):
+        data_path = self.suites_path / "ph" / "low_dim.hdf5"
 
         tree = h5_to_tree(data_path)
         return tree
@@ -59,14 +64,15 @@ class RobotSuiteFactory(EnvFactory):
     def check_download(self):
         if os.path.exists(self.suites_path):
             print("Datasets found:")
-            t_names = [f.stem for f in self.suites_path.glob("*.hdf5")]
+            t_names = [f.relative_to(self.suites_path.parent) for f in self.suites_path.glob("**/*.hdf5")]
             for index, name in enumerate(t_names):
                 print(index, ": ", name)
         else:
-            print(f"{self.Task} dataset not found. Downloading now")
+            print(f"{self.task} dataset not found. Downloading now")
+            script_path = Path(robomimic.__file__).parent / "scripts/download_datasets.py"
             cmd = [
                 sys.executable,
-                "../../../.venv/lib/python3.13/site-packages/datasets",
+                str(script_path),
                 "--tasks",
                 self.task.lower(),
                 "--dataset_types",
@@ -75,3 +81,18 @@ class RobotSuiteFactory(EnvFactory):
                 "low_dim",
             ]
             subprocess.run(cmd, check=True)
+
+    def set_init_state(self, init_state):
+        self.env.sim.set_state_from_flattened(init_state)
+        self.env.sim.forward()
+
+    def get_state(self):
+        state_data = self.env.sim.get_state().flatten().reshape(1, -1)
+        return state_data
+
+    def step(self, action):
+        action = action.flatten()
+        return self.env.step(action)
+
+    def reset(self):
+        self.env.reset()

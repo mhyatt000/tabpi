@@ -11,6 +11,7 @@ from rich import print
 from sklearn.metrics import mean_squared_error, r2_score
 from tqdm import tqdm
 
+from tabpi.envs.env import EnvFactory
 import wandb
 
 
@@ -27,12 +28,19 @@ def val_metrics(model: Any, x_test: np.ndarray, y_test: np.ndarray) -> dict[str,
 
 
 def rollout(
-    max_steps: int, policy: Any, venv: Any, timer: Any, overfit: bool = False, demo: bool = False, init_state=None
+    env: EnvFactory,
+    max_steps: int,
+    policy: Any,
+    venv: Any,
+    timer: Any,
+    overfit: bool = False,
+    demo: bool = False,
+    init_state=None,
 ) -> dict[str, Any]:
     env_name = "demo" if demo else "sim"
     if overfit:
-        init_states = np.stack([init_state] * venv.env_num)
-        venv.set_init_state(init_states)
+        print("Overfitting")
+        env.set_init_state(init_state)
 
     frames = []
     success = 0
@@ -40,27 +48,28 @@ def rollout(
     bar = tqdm(range(max_steps), desc="Rollout")
 
     for i in bar:
-        states = np.array(venv.get_sim_state())
+        states = np.array(env.get_state())
 
         with timer("fwd"):
-            actions = policy(states) if not isinstance(policy, np.ndarray) else np.stack([policy[i]] * venv.env_num)
+            actions = policy(states) if not isinstance(policy, np.ndarray) else np.stack([policy[i]] * env.n_envs)
         with timer(env_name):
-            obs, rewards, dones, _info = venv.step(actions)
+            obs, rewards, dones, _info = env.step(actions)
 
-        frames.append(obs[0]["galleryview_image"][::-1])
+        # frames.append(obs[0]["galleryview_image"][::-1])
+        frames.append(obs["agentview_image"][::-1])
 
-        dones = np.array(dones)
-        rewards = np.array(rewards)
-        successes = rewards.sum(axis=-1)
+        dones = dones  # np.array(dones)
+        rewards = rewards  # np.array(rewards)
+        successes = rewards  # rewards.sum(axis=-1)
 
-        desc = f"Step: {len(frames)}/{max_steps} SR: {successes} Done: {dones}"
+        desc = f"Step: {len(frames)}/{max_steps} SR: {successes: .2f} Done: {dones}"
         bar.set_description(desc)
 
-        if dones.all():
+        if dones:  # dones.all():
             bar.write("Task Completed!")
             break
 
-    venv.reset()
+    env.reset()
 
     imageio.mimsave(f"ObsVids/{env_name}_rollout{random.randint(1, 1000)}.mp4", frames, fps=30)
 
