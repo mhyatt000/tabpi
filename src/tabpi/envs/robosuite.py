@@ -35,6 +35,7 @@ class RoboSuiteFactory(EnvFactory):
 
     def build(self):
         controller_config = load_controller_config(default_controller="OSC_POSE")
+        controller_config["control_delta"] = False
 
         env_kwargs = {
             "env_name": self.task,

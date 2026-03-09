@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import random
 from typing import Any
 
 import imageio
@@ -71,7 +70,7 @@ def rollout(
 
     env.reset()
 
-    imageio.mimsave(f"ObsVids/{env_name}_rollout{random.randint(1, 1000)}.mp4", frames, fps=30)
+    imageio.mimsave(f"ObsVids/{env_name}_rollout.mp4", frames, fps=30)
 
     return {
         f"{env_name}/video": wandb.Video(f"ObsVids/{env_name}_rollout.mp4", format="mp4"),
