@@ -21,7 +21,7 @@ import wandb
 @dataclass
 class Config:
     fit: float = 0.10
-    shuffle: str | None = None
+    shuffle: str = "steps"
 
     wandb: Wandb = field(default_factory=Wandb)
     env: EnvFactory = field(default_factory=RoboSuiteFactory)
@@ -39,6 +39,7 @@ def main(cfg: Config):
 
     raw_data: dict[str, Any] = cfg.env.load_data()
     features, actions = extract(raw_data, cfg.shuffle, cfg.env.demo)
+    print(features.shape, actions.shape)
 
     x_fit, x_test, y_fit, y_test = shuffle(cfg.fit, features, actions, cfg.shuffle)
 

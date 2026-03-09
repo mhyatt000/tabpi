@@ -31,7 +31,7 @@ def extract(tree: dict, shuffle: str, demo) -> tuple[np.ndarray, np.ndarray]:
 
     keys = sa_by_demo.keys()
 
-    if shuffle == "steps" or shuffle is None:
+    if shuffle == "steps":
         states = np.concatenate([sa_by_demo[k][0] for k in keys], axis=0)
         actions = np.concatenate([sa_by_demo[k][1] for k in keys], axis=0)
 

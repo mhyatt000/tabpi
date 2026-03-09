@@ -65,7 +65,7 @@ def rollout(
         desc = f"Step: {len(frames)}/{max_steps} SR: {successes: .2f} Done: {dones}"
         bar.set_description(desc)
 
-        if dones:  # dones.all():
+        if successes == 1:  # dones.all():
             bar.write("Task Completed!")
             break
 

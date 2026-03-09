@@ -20,7 +20,7 @@ from .env import EnvFactory
 @dataclass
 class RoboSuiteFactory(EnvFactory):
     task: str = "Lift"
-    n_envs: int = 0
+    n_envs: int = 1
     vectorized: bool = False
     horizon: int = 600
 
