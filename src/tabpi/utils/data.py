@@ -23,11 +23,11 @@ def extract(tree: dict, shuffle: str, demo) -> tuple[np.ndarray, np.ndarray]:
     demos = tree["data"]
 
     if demo is None:
-        sa_by_demo = {k: (d["states"], d["actions"]) for k, d in demos.items()}
+        sa_by_demo = {k: (d["states"], d["actions_abs"]) for k, d in demos.items()}
 
     elif isinstance(demo, int):
         key = f"demo_{demo}"
-        sa_by_demo = {key: (demos[key]["states"], demos[key]["actions"])}
+        sa_by_demo = {key: (demos[key]["states"], demos[key]["actions_abs"])}
 
     keys = sa_by_demo.keys()
 

@@ -57,7 +57,7 @@ class RoboSuiteFactory(EnvFactory):
         return self.env
 
     def load_data(self):
-        data_path = self.suites_path / "ph" / "low_dim.hdf5"
+        data_path = self.suites_path / "ph" / "demo.hdf5"
 
         tree = h5_to_tree(data_path)
         return tree
