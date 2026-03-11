@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import partial
 from typing import Any
 
 from rich import print
@@ -22,6 +23,7 @@ import wandb
 class Config:
     fit: float = 0.10
     shuffle: str = "steps"
+    n_runs: int = 5
 
     wandb: Wandb = field(default_factory=Wandb)
     env: EnvFactory = field(default_factory=RoboSuiteFactory)
@@ -73,13 +75,14 @@ def main(cfg: Config):
 
     print(f"Horizon: {cfg.env.horizon}")
     pi = ModelPolicy(model)
-    result = rollout(cfg.env, cfg.env.horizon, pi, venv, t, cfg.env.overfit, False, features[0])
+    roll = partial(rollout, cfg.env, cfg.env.horizon, pi, venv, t, cfg.env.overfit, False, features[0])
+    results = [roll(n) for n in range(cfg.n_runs)]
 
     times = t.get_average_times()
     metrics = {
         "val": val,
         **({"demo_rollout": demo_result} if cfg.env.overfit else {}),
-        "rollout": result,
+        "rollout": results,
         "times": times,
     }
     print(metrics)

@@ -22,7 +22,7 @@ class RoboSuiteFactory(EnvFactory):
     task: str = "Lift"
     n_envs: int = 1
     vectorized: bool = False
-    horizon: int = 600
+    horizon: int = 150
 
     overfit: bool = False
     demo: int | None = None

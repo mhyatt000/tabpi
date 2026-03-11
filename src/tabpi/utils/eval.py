@@ -35,6 +35,7 @@ def rollout(
     overfit: bool = False,
     demo: bool = False,
     init_state=None,
+    run_num: int = 1,
 ) -> dict[str, Any]:
     env_name = "demo" if demo else "sim"
     if overfit:
@@ -61,7 +62,7 @@ def rollout(
         rewards = rewards  # np.array(rewards)
         successes = rewards  # rewards.sum(axis=-1)
 
-        desc = f"Step: {len(frames)}/{max_steps} SR: {successes: .2f} Done: {dones}"
+        desc = f"{run_num}: Step: {len(frames)}/{max_steps} SR: {successes: .2f}"
         bar.set_description(desc)
 
         if successes == 1:  # dones.all():
@@ -70,10 +71,10 @@ def rollout(
 
     env.reset()
 
-    imageio.mimsave(f"ObsVids/{env_name}_rollout.mp4", frames, fps=30)
+    imageio.mimsave(f"ObsVids/{env_name}_rollout{run_num}.mp4", frames, fps=30)
 
     return {
-        f"{env_name}/video": wandb.Video(f"ObsVids/{env_name}_rollout.mp4", format="mp4"),
+        f"{env_name}/video": wandb.Video(f"ObsVids/{env_name}_rollout{run_num}.mp4", format="mp4"),
         "len": len(frames),
         "sr": successes,
     }
