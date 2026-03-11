@@ -76,9 +76,16 @@ def main(cfg: Config):
     print(f"Horizon: {cfg.env.horizon}")
     pi = ModelPolicy(model)
     roll = partial(rollout, cfg.env, cfg.env.horizon, pi, venv, t, cfg.env.overfit, False, features[0])
-    results = [roll(n) for n in range(cfg.n_runs)]
+
+    results = [roll(n) for n in range(cfg.n_runs)] if cfg.n_runs != 0 else roll()
 
     times = t.get_average_times()
+
+    for i, r in enumerate(results):
+        for key in ["demo/video", "sim/video"]:
+            if key in r:
+                cfg.wandb.log({f"{key}": r.pop(key)})
+
     metrics = {
         "val": val,
         **({"demo_rollout": demo_result} if cfg.env.overfit else {}),

@@ -34,7 +34,7 @@ def rollout(
     timer: Any,
     overfit: bool = False,
     demo: bool = False,
-    init_state=None,
+    init_state: Any = None,
     run_num: int = 1,
 ) -> dict[str, Any]:
     env_name = "demo" if demo else "sim"
@@ -59,7 +59,7 @@ def rollout(
         frames.append(obs["agentview_image"][::-1])
 
         dones = dones  # np.array(dones)
-        rewards = rewards  # np.array(rewards)
+        rewards = env.env._check_success()  # np.array(rewards)
         successes = rewards  # rewards.sum(axis=-1)
 
         desc = f"{run_num}: Step: {len(frames)}/{max_steps} SR: {successes: .2f}"
