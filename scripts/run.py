@@ -84,7 +84,7 @@ def main(cfg: Config):
     for i, r in enumerate(results):
         for key in ["demo/video", "sim/video"]:
             if key in r:
-                cfg.wandb.log({f"{key}": r.pop(key)})
+                cfg.wandb.log({f"{key}{i}": r.pop(key)})
 
     metrics = {
         "val": val,
