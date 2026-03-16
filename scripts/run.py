@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any
+from typing import Any, Literal
 
 from rich import print
 from tabpfn_extensions.multioutput import TabPFNMultiOutputRegressor
 import torch
+from tqdm import tqdm
 import tyro
+import wandb
 
 from tabpi.envs.env import EnvFactory
 from tabpi.envs.robosuite import RoboSuiteFactory
@@ -16,18 +18,20 @@ from tabpi.utils.data import extract, shuffle
 from tabpi.utils.eval import rollout, val_metrics
 from tabpi.utils.timer import Timer
 from tabpi.utils.wab import Wandb
-import wandb
 
 
 @dataclass
 class Config:
     fit: float = 0.10
     selection: str = "steps"
-    n_runs: int = 5
+    n_runs: int = 5  # for non VecEnv. sequential rollouts
 
     wandb: Wandb = field(default_factory=Wandb)
     env: EnvFactory = field(default_factory=RoboSuiteFactory)
     debug: bool = False
+
+    action: Literal["absolute", "relative"] = "relative"
+    n_estimators: int = 4
 
     def __post_init__(self):
         if self.debug:
@@ -49,7 +53,7 @@ def main(cfg: Config):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = TabPFNMultiOutputRegressor(
-        n_estimators=4,
+        n_estimators=cfg.n_estimators,
         device=device,
         # device='cuda:0',:
         # n_preprocessing_jobs=act_dim*2,
@@ -75,26 +79,37 @@ def main(cfg: Config):
 
     print(f"Horizon: {cfg.env.horizon}")
     pi = ModelPolicy(model)
-    roll = partial(rollout, cfg.env, cfg.env.horizon, pi, venv, t, cfg.env.overfit, False, features[0])
 
-    results = [roll(n) for n in range(cfg.n_runs)] if cfg.n_runs != 1 else roll()
+    # results : list[dict[str, Any]] = [roll(n) for n in range(cfg.n_runs)] # if cfg.n_runs != 1 else roll()
+
+    roll = partial(rollout, cfg.env, cfg.env.horizon, pi, venv, t, cfg.wandb, cfg.env.overfit, False, features[0])
+    for i in tqdm(range(cfg.n_runs), desc="Rollouts", leave=False):
+        result = roll()
+        print(result)
+        cfg.wandb.log(result)
 
     times = t.get_average_times()
 
-    if cfg.n_runs != 1:
-        for i, r in enumerate(results):
-            for key in ["demo/video", "sim/video"]:
-                if key in r:
-                    cfg.wandb.log({f"{key}{i}": r.pop(key)})
+    """
+    # if cfg.n_runs != 1: # then we want to log each video separately
+    for i, r in enumerate(results):
+        for key in ["demo/video", "sim/video"]:
+            if key in r:
+                cfg.wandb.log({f"{key}{i}": r.pop(key)})
+
+# reduce list by taking the average of each metric across runs with jax.tree.map and/or jax.tree.reduce
+    results = jax.tree.reduce(lambda x, y: jax.tree.map(lambda a, b: a + b, x, y), results) / cfg.n_runs
+    """
 
     metrics = {
         "val": val,
         **({"demo_rollout": demo_result} if cfg.env.overfit else {}),
-        "rollout": results,
+        # "rollout": results,
         "times": times,
     }
     print(metrics)
-    cfg.wandb.log(metrics)
+    for _ in range(2):  # hack: turn bars to lines
+        cfg.wandb.log(metrics)
 
     venv.close()
     wandb.finish()

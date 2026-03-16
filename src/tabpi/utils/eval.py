@@ -31,10 +31,10 @@ def rollout(
     policy: Any,
     venv: Any,
     timer: Any,
+    cfg: Any,
     overfit: bool = False,
     demo: bool = False,
     init_state: Any = None,
-    run_num: int = 1,
 ) -> dict[str, Any]:
     env_name = "demo" if demo else "sim"
     if overfit:
@@ -58,22 +58,36 @@ def rollout(
         frames.append(obs["agentview_image"][::-1])
 
         dones = dones  # np.array(dones)
-        rewards = env.env._check_success()  # np.array(rewards)
-        successes = rewards  # rewards.sum(axis=-1)
+        success: bool = int(env.env._check_success())  # np.array(rewards)
+        # successes = rewards  # rewards.sum(axis=-1)
 
-        desc = f"{run_num}: Step: {len(frames)}/{max_steps} SR: {successes: .2f}"
+        payload = {
+            f"{env_name}/reward": rewards,
+            # histogram of actions
+        }
+        payload = payload | {
+            f"{env_name}/actions{i}": wandb.Histogram(actions[..., i]) for i in range(actions.shape[-1])
+        }
+
+        cfg.log(payload)
+
+        desc = f"Step: {len(frames)}/{max_steps} SR: {success: .2f}"
         bar.set_description(desc)
 
-        if successes == 1:  # dones.all():
+        if success == 1:  # dones.all():
             bar.write("Task Completed!")
             break
 
     env.reset()
+
     video = np.array(frames)
     # wandb.Video expects (T, C, H, W) for raw numpy input.
     video = np.transpose(video, (0, 3, 1, 2))
+
     return {
-        f"{env_name}/video": wandb.Video(video, fps=30, format="mp4"),
-        "len": len(frames),
-        "sr": successes,
+        f"{env_name}": {
+            "video": wandb.Video(video, fps=30, format="mp4"),
+            "len": len(frames),
+            "sr": success,
+        }
     }
