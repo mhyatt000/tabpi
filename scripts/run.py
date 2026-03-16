@@ -22,7 +22,7 @@ import wandb
 @dataclass
 class Config:
     fit: float = 0.10
-    shuffle: str = "steps"
+    selection: str = "steps"
     n_runs: int = 5
 
     wandb: Wandb = field(default_factory=Wandb)
@@ -40,7 +40,7 @@ def main(cfg: Config):
     cfg.env.check_download()
 
     raw_data: dict[str, Any] = cfg.env.load_data()
-    features, actions = extract(raw_data, cfg.shuffle, cfg.env.demo)
+    features, actions = extract(raw_data, cfg.selection, cfg.env.demo)
     print(features.shape, actions.shape)
 
     x_fit, x_test, y_fit, y_test = shuffle(cfg.fit, features, actions, None)
@@ -49,7 +49,7 @@ def main(cfg: Config):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = TabPFNMultiOutputRegressor(
-        n_estimators=6,
+        n_estimators=4,
         device=device,
         # device='cuda:0',:
         # n_preprocessing_jobs=act_dim*2,
@@ -77,14 +77,15 @@ def main(cfg: Config):
     pi = ModelPolicy(model)
     roll = partial(rollout, cfg.env, cfg.env.horizon, pi, venv, t, cfg.env.overfit, False, features[0])
 
-    results = [roll(n) for n in range(cfg.n_runs)] if cfg.n_runs != 0 else roll()
+    results = [roll(n) for n in range(cfg.n_runs)] if cfg.n_runs != 1 else roll()
 
     times = t.get_average_times()
 
-    for i, r in enumerate(results):
-        for key in ["demo/video", "sim/video"]:
-            if key in r:
-                cfg.wandb.log({f"{key}{i}": r.pop(key)})
+    if cfg.n_runs != 1:
+        for i, r in enumerate(results):
+            for key in ["demo/video", "sim/video"]:
+                if key in r:
+                    cfg.wandb.log({f"{key}{i}": r.pop(key)})
 
     metrics = {
         "val": val,

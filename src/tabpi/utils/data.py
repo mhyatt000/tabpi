@@ -19,7 +19,7 @@ def h5_to_tree(path: str) -> dict[str, h5py.Group]:
         return read_node(f)
 
 
-def extract(tree: dict, shuffle: str, demo) -> tuple[np.ndarray, np.ndarray]:
+def extract(tree: dict, selection: str, demo) -> tuple[np.ndarray, np.ndarray]:
     demos = tree["data"]
 
     if demo is None:
@@ -31,11 +31,11 @@ def extract(tree: dict, shuffle: str, demo) -> tuple[np.ndarray, np.ndarray]:
 
     keys = sa_by_demo.keys()
 
-    if shuffle == "steps":
+    if selection == "steps":
         states = np.concatenate([sa_by_demo[k][0] for k in keys], axis=0)
         actions = np.concatenate([sa_by_demo[k][1] for k in keys], axis=0)
 
-    elif shuffle == "demos":  # Can't use np.stack since different dimensions
+    elif selection == "demos":  # Can't use np.stack since different dimensions
         states = np.array([sa_by_demo[k][0] for k in keys], dtype=object)
         actions = np.array([sa_by_demo[k][1] for k in keys], dtype=object)
 
