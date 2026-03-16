@@ -4,14 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-import imageio
 import numpy as np
 from rich import print
 from sklearn.metrics import mean_squared_error, r2_score
 from tqdm import tqdm
+import wandb
 
 from tabpi.envs.env import EnvFactory
-import wandb
 
 
 def val_metrics(model: Any, x_test: np.ndarray, y_test: np.ndarray) -> dict[str, float]:
@@ -70,11 +69,11 @@ def rollout(
             break
 
     env.reset()
-
-    imageio.mimsave(f"ObsVids/{env_name}_rollout{run_num}.mp4", frames, fps=30)
-
+    video = np.array(frames)
+    # wandb.Video expects (T, C, H, W) for raw numpy input.
+    video = np.transpose(video, (0, 3, 1, 2))
     return {
-        f"{env_name}/video": wandb.Video(f"ObsVids/{env_name}_rollout{run_num}.mp4", format="mp4"),
+        f"{env_name}/video": wandb.Video(video, fps=30, format="mp4"),
         "len": len(frames),
         "sr": successes,
     }
