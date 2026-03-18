@@ -9,7 +9,6 @@ from tabpfn_extensions.multioutput import TabPFNMultiOutputRegressor
 import torch
 from tqdm import tqdm
 import tyro
-import wandb
 
 from tabpi.envs.env import EnvFactory
 from tabpi.envs.robosuite import RoboSuiteFactory
@@ -18,6 +17,7 @@ from tabpi.utils.data import extract, shuffle
 from tabpi.utils.eval import rollout, val_metrics
 from tabpi.utils.timer import Timer
 from tabpi.utils.wab import Wandb
+import wandb
 
 
 @dataclass
@@ -77,10 +77,7 @@ def main(cfg: Config):
         print(f"Running demo_{cfg.env.demo}")
         demo_result = rollout(cfg.env, cfg.env.horizon, actions, venv, t, cfg.env.overfit, True, features[0])
 
-    print(f"Horizon: {cfg.env.horizon}")
     pi = ModelPolicy(model)
-
-    # results : list[dict[str, Any]] = [roll(n) for n in range(cfg.n_runs)] # if cfg.n_runs != 1 else roll()
 
     roll = partial(rollout, cfg.env, cfg.env.horizon, pi, venv, t, cfg.wandb, cfg.env.overfit, False, features[0])
     for i in tqdm(range(cfg.n_runs), desc="Rollouts", leave=False):
@@ -90,26 +87,14 @@ def main(cfg: Config):
 
     times = t.get_average_times()
 
-    """
-    # if cfg.n_runs != 1: # then we want to log each video separately
-    for i, r in enumerate(results):
-        for key in ["demo/video", "sim/video"]:
-            if key in r:
-                cfg.wandb.log({f"{key}{i}": r.pop(key)})
+    wandb.define_metric("val", step_metric="step")
+    wandb.define_metric("times", step_metric="step")
+    if cfg.env.overfit:
+        wandb.define_metric("demo_rollout", step_metric="step")
 
-# reduce list by taking the average of each metric across runs with jax.tree.map and/or jax.tree.reduce
-    results = jax.tree.reduce(lambda x, y: jax.tree.map(lambda a, b: a + b, x, y), results) / cfg.n_runs
-    """
+    metrics = {"val": val, **({"demo_rollout": demo_result} if cfg.env.overfit else {}), "times": times}
 
-    metrics = {
-        "val": val,
-        **({"demo_rollout": demo_result} if cfg.env.overfit else {}),
-        # "rollout": results,
-        "times": times,
-    }
-    print(metrics)
-    for _ in range(2):  # hack: turn bars to lines
-        cfg.wandb.log(metrics)
+    cfg.wandb.log(metrics)
 
     venv.close()
     wandb.finish()

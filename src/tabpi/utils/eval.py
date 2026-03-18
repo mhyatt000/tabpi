@@ -8,9 +8,9 @@ import numpy as np
 from rich import print
 from sklearn.metrics import mean_squared_error, r2_score
 from tqdm import tqdm
-import wandb
 
 from tabpi.envs.env import EnvFactory
+import wandb
 
 
 def val_metrics(model: Any, x_test: np.ndarray, y_test: np.ndarray) -> dict[str, float]:
@@ -52,26 +52,29 @@ def rollout(
         with timer("fwd"):
             actions = policy(states) if not isinstance(policy, np.ndarray) else np.stack([policy[i]] * env.n_envs)
         with timer(env_name):
-            obs, rewards, dones, _info = env.step(actions)
+            obs, reward, done, _info = env.step(actions)
 
         # frames.append(obs[0]["galleryview_image"][::-1])
         frames.append(obs["agentview_image"][::-1])
 
-        dones = dones  # np.array(dones)
-        success: bool = int(env.env._check_success())  # np.array(rewards)
-        # successes = rewards  # rewards.sum(axis=-1)
+        dones = done  # np.array(dones)
+        success: bool = int(env.env._check_success())
 
-        payload = {
-            f"{env_name}/reward": rewards,
-            # histogram of actions
-        }
-        payload = payload | {
-            f"{env_name}/actions{i}": wandb.Histogram(actions[..., i]) for i in range(actions.shape[-1])
-        }
+        payload = {f"{env_name}/reward": reward}
+
+        joint_pos = env.env.robots[0]._joint_positions
+        eef_xpos = obs["robot0_eef_pos"]
+
+        if max_steps % 10 == 0:
+            payload = payload | {
+                **{f"{env_name}/actions{i}": wandb.Histogram(actions[..., i]) for i in range(actions.shape[-1])},
+                **{f"{env_name}/joint{i}": wandb.Histogram(actions[..., i]) for i in range(joint_pos.shape[-1])},
+                **{f"{env_name}/eef_{i}": wandb.Histogram(actions[..., i]) for i in range(eef_xpos.shape[-1])},
+            }
 
         cfg.log(payload)
 
-        desc = f"Step: {len(frames)}/{max_steps} SR: {success: .2f}"
+        desc = f"Step: {len(frames)}/{max_steps} SR: {success}"
         bar.set_description(desc)
 
         if success == 1:  # dones.all():
@@ -84,10 +87,4 @@ def rollout(
     # wandb.Video expects (T, C, H, W) for raw numpy input.
     video = np.transpose(video, (0, 3, 1, 2))
 
-    return {
-        f"{env_name}": {
-            "video": wandb.Video(video, fps=30, format="mp4"),
-            "len": len(frames),
-            "sr": success,
-        }
-    }
+    return {f"{env_name}": {"video": wandb.Video(video, fps=30, format="mp4"), "len": len(frames), "sr": success}}

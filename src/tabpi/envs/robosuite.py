@@ -23,6 +23,7 @@ class RoboSuiteFactory(EnvFactory):
     # n_envs: int = 1 # for vec env ... not supported yet
     vectorized: bool = False
     horizon: int = 150
+    controller: str = "OSC_POSE"
 
     overfit: bool = False
     demo: int | None = None
@@ -34,7 +35,7 @@ class RoboSuiteFactory(EnvFactory):
             self.demo = 0
 
     def build(self):
-        controller_config = load_controller_config(default_controller="OSC_POSE")
+        controller_config = load_controller_config(default_controller=self.controller)
         controller_config["control_delta"] = False
 
         env_kwargs = {
