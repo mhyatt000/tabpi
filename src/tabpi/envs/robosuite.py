@@ -31,6 +31,9 @@ class RoboSuiteFactory(EnvFactory):
     def __post_init__(self):
         self.suites_path = (Path(robomimic.__file__).parents[0] / "../datasets" / self.task.lower()).resolve()
 
+        if self.controller == "JOINT_POSITION":
+            self.file_name = "low_dim.hdf5"
+
         if self.overfit and self.demo is None:
             self.demo = 0
 
@@ -58,7 +61,7 @@ class RoboSuiteFactory(EnvFactory):
         return self.env
 
     def load_data(self):
-        data_path = self.suites_path / "ph" / "demo.hdf5"
+        data_path = self.suites_path / "ph" / f"{self.file_name}"
 
         tree = h5_to_tree(data_path)
         return tree

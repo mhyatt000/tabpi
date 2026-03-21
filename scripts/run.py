@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from functools import partial
 from typing import Any, Literal
 
+import numpy as np
 from rich import print
 from tabpfn_extensions.multioutput import TabPFNMultiOutputRegressor
 import torch
@@ -14,7 +15,7 @@ from tabpi.envs.env import EnvFactory
 from tabpi.envs.robosuite import RoboSuiteFactory
 from tabpi.models.tabpfn_policy import ModelPolicy
 from tabpi.utils.data import extract, shuffle
-from tabpi.utils.eval import rollout, val_metrics
+from tabpi.utils.eval import rollout
 from tabpi.utils.timer import Timer
 from tabpi.utils.wab import Wandb
 import wandb
@@ -30,7 +31,7 @@ class Config:
     env: EnvFactory = field(default_factory=RoboSuiteFactory)
     debug: bool = False
 
-    action: Literal["absolute", "relative"] = "relative"
+    action: Literal["absolute", "relative", "obs/robot0_joint_pos"] = "relative"
     n_estimators: int = 4
 
     def __post_init__(self):
@@ -45,6 +46,10 @@ def main(cfg: Config):
 
     raw_data: dict[str, Any] = cfg.env.load_data()
     features, actions = extract(raw_data, cfg.selection, cfg.env.demo)
+    if cfg.action == "obs/robot0_joint_pos":
+        _, gripper_actions = extract(raw_data, cfg.selection, cfg.env.demo)
+        actions = np.concatenate([actions, gripper_actions[:, -1:]], axis=1)
+
     print(features.shape, actions.shape)
 
     x_fit, x_test, y_fit, y_test = shuffle(cfg.fit, features, actions, None)
@@ -67,8 +72,8 @@ def main(cfg: Config):
     with t("fit"):
         model.fit(x_fit, y_fit)
 
-    with t("val"):
-        val = val_metrics(model, x_test, y_test)
+    """with t("val"):
+        val = val_metrics(model, x_test, y_test)"""
 
     print("Initializing Wandb")
     cfg.wandb.initialize(cfg)
