@@ -37,6 +37,11 @@ class Config:
     def __post_init__(self):
         if self.debug:
             self.wandb.use = False
+        if self.action in ("relative", "absolute"):
+            self.env.controller = "OSC_POSE"
+        elif self.action == "obs/robot0_joint_pos":
+            self.env.controller = "JOINT_POSITION"
+            self.env.file_name = "low_dim.hdf5"
 
 
 def main(cfg: Config):

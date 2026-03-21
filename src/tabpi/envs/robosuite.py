@@ -24,15 +24,13 @@ class RoboSuiteFactory(EnvFactory):
     vectorized: bool = False
     horizon: int = 150
     controller: str = "OSC_POSE"
+    file_name: str = "demo.hdf5"
 
     overfit: bool = False
     demo: int | None = None
 
     def __post_init__(self):
         self.suites_path = (Path(robomimic.__file__).parents[0] / "../datasets" / self.task.lower()).resolve()
-
-        if self.controller == "JOINT_POSITION":
-            self.file_name = "low_dim.hdf5"
 
         if self.overfit and self.demo is None:
             self.demo = 0
