@@ -10,7 +10,6 @@ from tabpfn_extensions.multioutput import TabPFNMultiOutputRegressor
 import torch
 from tqdm import tqdm
 import tyro
-import wandb
 
 from tabpi.envs.env import EnvFactory
 from tabpi.envs.robosuite import RoboSuiteFactory
@@ -19,6 +18,7 @@ from tabpi.utils.data import extract, shuffle
 from tabpi.utils.eval import rollout
 from tabpi.utils.timer import Timer
 from tabpi.utils.wab import Wandb
+import wandb
 
 
 @dataclass
