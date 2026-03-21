@@ -8,9 +8,9 @@ import numpy as np
 from rich import print
 from sklearn.metrics import mean_squared_error, r2_score
 from tqdm import tqdm
+import wandb
 
 from tabpi.envs.env import EnvFactory
-import wandb
 
 
 def val_metrics(model: Any, x_test: np.ndarray, y_test: np.ndarray) -> dict[str, float]:
