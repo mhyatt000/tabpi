@@ -65,12 +65,11 @@ def rollout(
         joint_pos = env.env.robots[0]._joint_positions
         eef_xpos = obs["robot0_eef_pos"]
 
-        if max_steps % 10 == 0:
-            payload = payload | {
-                **{f"{env_name}/actions{i}": wandb.Histogram(actions[..., i]) for i in range(actions.shape[-1])},
-                **{f"{env_name}/joint{i}": wandb.Histogram(actions[..., i]) for i in range(joint_pos.shape[-1])},
-                **{f"{env_name}/eef_{i}": wandb.Histogram(actions[..., i]) for i in range(eef_xpos.shape[-1])},
-            }
+        payload = payload | {
+            **{f"{env_name}/actions{i}": wandb.Histogram(actions[..., i]) for i in range(actions.shape[-1])},
+            **{f"{env_name}/joint{i}": wandb.Histogram(actions[..., i]) for i in range(joint_pos.shape[-1])},
+            **{f"{env_name}/eef_{i}": wandb.Histogram(actions[..., i]) for i in range(eef_xpos.shape[-1])},
+        }
 
         cfg.log(payload)
 
@@ -83,8 +82,8 @@ def rollout(
 
     env.reset()
 
-    video = np.array(frames)
     # wandb.Video expects (T, C, H, W) for raw numpy input.
+    video = np.array(frames)
     video = np.transpose(video, (0, 3, 1, 2))
 
     return {f"{env_name}": {"video": wandb.Video(video, fps=30, format="mp4"), "len": len(frames), "sr": success}}

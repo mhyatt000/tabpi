@@ -97,12 +97,15 @@ def main(cfg: Config):
 
     times = t.get_average_times()
 
-    wandb.define_metric("val", step_metric="step")
+    # wandb.define_metric("val", step_metric="step")
     wandb.define_metric("times", step_metric="step")
     if cfg.env.overfit:
         wandb.define_metric("demo_rollout", step_metric="step")
 
-    metrics = {"val": val, **({"demo_rollout": demo_result} if cfg.env.overfit else {}), "times": times}
+    metrics = {  # "val": val,
+        **({"demo_rollout": demo_result} if cfg.env.overfit else {}),
+        "times": times,
+    }
 
     cfg.wandb.log(metrics)
 
