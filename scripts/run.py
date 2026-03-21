@@ -85,7 +85,7 @@ def main(cfg: Config):
 
     if cfg.env.overfit:
         print(f"Running demo_{cfg.env.demo}")
-        demo_result = rollout(cfg.env, cfg.env.horizon, actions, venv, t, cfg.env.overfit, True, features[0])
+        demo_result = rollout(cfg.env, cfg.env.horizon, actions, venv, t, cfg.wandb, cfg.env.overfit, True, features[0])
 
     pi = ModelPolicy(model)
 
