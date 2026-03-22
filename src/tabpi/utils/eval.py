@@ -13,7 +13,6 @@ import wandb
 from tabpi.envs.env import EnvFactory
 
 
-
 def val_metrics(model: Any, x_test: np.ndarray, y_test: np.ndarray) -> dict[str, float]:
     print("Predicting on last 10%")
     yh = model.predict(x_test)

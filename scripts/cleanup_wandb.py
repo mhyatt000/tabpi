@@ -9,7 +9,6 @@ import wandb
 from tabpi.utils.wab import Wandb
 
 
-
 @dataclass
 class Config:
     wandb: Wandb = field(default_factory=Wandb)
