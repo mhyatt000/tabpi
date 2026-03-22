@@ -4,9 +4,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, UTC
 
 import tyro
+import wandb
 
 from tabpi.utils.wab import Wandb
-import wandb
+
 
 
 @dataclass
