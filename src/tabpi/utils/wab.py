@@ -6,7 +6,6 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TypeAlias
 
-
 from flax.traverse_util import flatten_dict
 import wandb
 

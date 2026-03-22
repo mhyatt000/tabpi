@@ -21,7 +21,6 @@ from tabpi.utils.timer import Timer
 from tabpi.utils.wab import Wandb
 
 
-
 @dataclass
 class Config:
     fit: float = 0.10
