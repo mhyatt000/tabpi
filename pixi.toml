@@ -25,8 +25,8 @@ description = "Run cyclomatic complexity check (strict, min B)"
 cmd = "uvx ruff check . --select C901"
 description = "Check for functions with cyclomatic complexity > 10"
 
-[tasks.libero]
-cmd = "uv run experiments/demo_shuffle.py"
+[tasks.experiment]
+cmd = "uv run scripts/run.py --debug"
 depends-on = []
 
 [dependencies]

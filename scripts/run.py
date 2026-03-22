@@ -1,20 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any
+from functools import partial
+from typing import Any, Literal
 
-import libero
+import numpy as np
 from rich import print
 from tabpfn_extensions.multioutput import TabPFNMultiOutputRegressor
 import torch
+from tqdm import tqdm
 import tyro
 import wandb
 
-from tabpi.envs.libero import EnvFactory, LiberoFactory
+from tabpi.envs.env import EnvFactory
+from tabpi.envs.robosuite import RoboSuiteFactory
 from tabpi.models.tabpfn_policy import ModelPolicy
-from tabpi.utils.data import check_download, extract, shuffle
-from tabpi.utils.eval import rollout, val_metrics
+from tabpi.utils.data import extract, shuffle
+from tabpi.utils.eval import rollout
 from tabpi.utils.timer import Timer
 from tabpi.utils.wab import Wandb
 
@@ -22,35 +24,48 @@ from tabpi.utils.wab import Wandb
 @dataclass
 class Config:
     fit: float = 0.10
-    shuffle: str = None
+    selection: str = "steps"
+    n_runs: int = 5  # for non VecEnv. sequential rollouts
 
     wandb: Wandb = field(default_factory=Wandb)
-    env: EnvFactory = field(default_factory=LiberoFactory)
+    env: EnvFactory = field(default_factory=RoboSuiteFactory)
     debug: bool = False
+
+    action: Literal["absolute", "relative", "obs/robot0_joint_pos"] = "relative"
+    n_estimators: int = 4
 
     def __post_init__(self):
         if self.debug:
             self.wandb.use = False
-
-
-data_dir = Path(libero.__file__).parents[0] / "datasets"
+        if self.action in ("relative", "absolute"):
+            self.env.controller = "OSC_POSE"
+        elif self.action == "obs/robot0_joint_pos":
+            self.env.controller = "JOINT_POSITION"
+            self.env.file_name = "low_dim.hdf5"
 
 
 def main(cfg: Config):
     venv = cfg.env.build()
 
-    check_download(data_dir, cfg.env.suite)
+    cfg.env.check_download()
 
-    raw_data: dict[str, Any] = cfg.env.load_data(data_dir)
-    features, actions = extract(raw_data, cfg.shuffle, cfg.env.demo)
+    raw_data: dict[str, Any] = cfg.env.load_data()
+    features, actions = extract(raw_data, cfg.selection, cfg.env.demo)
+    if cfg.action == "obs/robot0_joint_pos":
+        _, gripper_actions = extract(raw_data, cfg.selection, cfg.env.demo)
+        actions = np.concatenate([actions, gripper_actions[:, -1:]], axis=1)
 
-    x_fit, x_test, y_fit, y_test = shuffle(cfg.fit, features, actions, cfg.shuffle)
+    print(features.shape, actions.shape)
+
+    x_fit, x_test, y_fit, y_test = shuffle(cfg.fit, features, actions, None)
+
+    print(x_fit.shape, y_fit.shape, x_test.shape, y_test.shape)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = TabPFNMultiOutputRegressor(
-        n_estimators=6,
+        n_estimators=cfg.n_estimators,
         device=device,
-        # device='cuda:0',
+        # device='cuda:0',:
         # n_preprocessing_jobs=act_dim*2,
         # memory_saving_mode=False,
         inference_precision="autocast",
@@ -62,29 +77,36 @@ def main(cfg: Config):
     with t("fit"):
         model.fit(x_fit, y_fit)
 
-    with t("val"):
-        val = val_metrics(model, x_test, y_test)
+    """with t("val"):
+        val = val_metrics(model, x_test, y_test)"""
 
     print("Initializing Wandb")
     cfg.wandb.initialize(cfg)
 
     if cfg.env.overfit:
         print(f"Running demo_{cfg.env.demo}")
-        demo_result = rollout(cfg.env.horizon, actions, venv, t, cfg.env.overfit, features[0])
+        demo_result = rollout(cfg.env, cfg.env.horizon, actions, venv, t, cfg.wandb, cfg.env.overfit, True, features[0])
 
-    # TODO use this in rollout, instead of passing it in
-    print(f"Horizon: {venv.get_env_attr('horizon')}")
     pi = ModelPolicy(model)
-    result = rollout(cfg.env.horizon, pi, venv, t)
+
+    roll = partial(rollout, cfg.env, cfg.env.horizon, pi, venv, t, cfg.wandb, cfg.env.overfit, False, features[0])
+    for i in tqdm(range(cfg.n_runs), desc="Rollouts", leave=False):
+        result = roll()
+        print(result)
+        cfg.wandb.log(result)
 
     times = t.get_average_times()
-    metrics = {
-        "val": val,
+
+    # wandb.define_metric("val", step_metric="step")
+    wandb.define_metric("times", step_metric="step")
+    if cfg.env.overfit:
+        wandb.define_metric("demo_rollout", step_metric="step")
+
+    metrics = {  # "val": val,
         **({"demo_rollout": demo_result} if cfg.env.overfit else {}),
-        "rollout": result,
         "times": times,
     }
-    print(metrics)
+
     cfg.wandb.log(metrics)
 
     venv.close()

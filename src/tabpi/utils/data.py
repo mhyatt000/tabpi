@@ -2,25 +2,9 @@
 
 from __future__ import annotations
 
-import os
-
 import h5py
-from libero.libero.utils.download_utils import libero_dataset_download
 import numpy as np
 from rich import print
-
-
-def check_download(suites, task_suite_name):
-    suite_dir = suites.joinpath(task_suite_name)
-
-    if os.path.exists(suite_dir):
-        print("Datasets found:")
-        t_names = [f.stem for f in suite_dir.glob("*.hdf5")]
-        for index, name in enumerate(t_names):
-            print(index, ": ", name)
-    else:
-        print(f"{task_suite_name} datasets not found. Downloading now")
-        libero_dataset_download(datasets=task_suite_name, download_dir=suites, use_huggingface=True)
 
 
 def h5_to_tree(path: str) -> dict[str, h5py.Group]:
@@ -35,23 +19,23 @@ def h5_to_tree(path: str) -> dict[str, h5py.Group]:
         return read_node(f)
 
 
-def extract(tree: dict, shuffle: str, demo) -> tuple[np.ndarray, np.ndarray]:
+def extract(tree: dict, selection: str, demo, action_key: str = "actions") -> tuple[np.ndarray, np.ndarray]:
     demos = tree["data"]
 
     if demo is None:
-        sa_by_demo = {k: (d["states"], d["actions"]) for k, d in demos.items()}
+        sa_by_demo = {k: (d["states"], d[action_key]) for k, d in demos.items()}
 
     elif isinstance(demo, int):
         key = f"demo_{demo}"
-        sa_by_demo = {key: (demos[key]["states"], demos[key]["actions"])}
+        sa_by_demo = {key: (demos[key]["states"], demos[key][action_key])}
 
     keys = sa_by_demo.keys()
 
-    if shuffle == "steps" or shuffle is None:
+    if selection == "steps":
         states = np.concatenate([sa_by_demo[k][0] for k in keys], axis=0)
         actions = np.concatenate([sa_by_demo[k][1] for k in keys], axis=0)
 
-    elif shuffle == "demos":  # Can't use np.stack since different dimensions
+    elif selection == "demos":  # Can't use np.stack since different dimensions
         states = np.array([sa_by_demo[k][0] for k in keys], dtype=object)
         actions = np.array([sa_by_demo[k][1] for k in keys], dtype=object)
 
@@ -71,6 +55,8 @@ def shuffle(
         rng.shuffle(indices)
         features = features[indices]
         actions = actions[indices]
+    else:
+        print("No Shuffle")
 
     x_fit, x_test, y_fit, y_test = split(training, test, features, actions)
     return x_fit, x_test, y_fit, y_test
